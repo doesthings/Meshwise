@@ -28,7 +28,11 @@ object Fmt {
         return "%.${d}f %s".format(Locale.US, mm * units.factor, units.suffix)
     }
 
-    fun number(v: Double, digits: Int = 2): String = "%.${digits}f".format(Locale.US, v)
+    /** Fixed decimals; values that round to zero print as "0.00", not "-0.00". */
+    fun number(v: Double, digits: Int = 2): String {
+        val text = "%.${digits}f".format(Locale.US, v)
+        return if (text.startsWith("-") && text.trimStart('-').all { it == '0' || it == '.' }) text.substring(1) else text
+    }
 
     fun area(mm2: Double, units: Units): String = when (units) {
         Units.IN -> "%.2f in²".format(Locale.US, mm2 / 645.16)

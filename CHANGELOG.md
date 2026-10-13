@@ -4,6 +4,11 @@ All notable changes to Meshwise are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Coordinates that round to zero show as 0.00 instead of -0.00.
+
 ## [1.2.0] - 2026-10-13
 
 Measuring rebuilt around features instead of loose points.
