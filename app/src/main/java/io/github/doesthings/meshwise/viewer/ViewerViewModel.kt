@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.doesthings.meshwise.BuildConfig
 import io.github.doesthings.meshwise.MeshwiseApp
 import io.github.doesthings.meshwise.R
 import io.github.doesthings.meshwise.cad.CadCrashException
@@ -20,6 +21,10 @@ import io.github.doesthings.meshwise.data.PartState
 import io.github.doesthings.meshwise.data.ProjectState
 import io.github.doesthings.meshwise.data.RecentFile
 import io.github.doesthings.meshwise.data.SettingsValues
+import io.github.doesthings.meshwise.data.UPDATES_OFF
+import io.github.doesthings.meshwise.data.UPDATES_ON
+import io.github.doesthings.meshwise.data.UpdateInfo
+import io.github.doesthings.meshwise.data.Updates
 import io.github.doesthings.meshwise.data.baseName
 import io.github.doesthings.meshwise.data.sha1
 import io.github.doesthings.meshwise.engine.CameraFrame
@@ -148,6 +153,56 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             settings.collect { applySettings(it) }
         }
+    }
+
+    // ------------------------------------------------------------------ updates
+
+    private val _update = MutableStateFlow<UpdateInfo?>(null)
+    /** A newer release to offer, or null. */
+    val update: StateFlow<UpdateInfo?> = _update.asStateFlow()
+
+    /** Fetches the newest release newer than the given version; replaceable in tests. */
+    var updateSource: (currentVersion: String) -> UpdateInfo? = Updates::fetchLatest
+    var currentVersion: String = BuildConfig.VERSION_NAME
+    var now: () -> Long = System::currentTimeMillis
+    private var updateJob: Job? = null
+
+    init {
+        if (settings.value.updateChecks == UPDATES_ON) checkForUpdates(manual = false)
+    }
+
+    /** The answer to "Check for updates?" (first launch, or the switch in Settings). */
+    fun setUpdateChecks(on: Boolean) {
+        updateSettings { it.copy(updateChecks = if (on) UPDATES_ON else UPDATES_OFF) }
+        if (on) checkForUpdates(manual = false)
+    }
+
+    /**
+     * Asks GitHub for the latest release. Automatic checks run at most once a day, stay silent
+     * on errors and skip a version the user chose to skip; a manual check always runs and
+     * reports what it found.
+     */
+    fun checkForUpdates(manual: Boolean) {
+        val s = settings.value
+        if (!manual && (s.updateChecks != UPDATES_ON || now() - s.lastUpdateCheck < Updates.CHECK_INTERVAL_MS)) return
+        if (updateJob?.isActive == true) return
+        updateJob = viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { updateSource(currentVersion) } }
+            updateSettings { it.copy(lastUpdateCheck = now()) }
+            val info = result.getOrNull()
+            when {
+                result.isFailure -> if (manual) emit(app.getString(R.string.update_check_failed))
+                info == null -> if (manual) emit(app.getString(R.string.update_none, currentVersion))
+                manual || info.version != settings.value.skippedUpdate -> _update.value = info
+            }
+        }
+    }
+
+    /** Closes the update prompt; [skip] stops automatic checks from offering this version again. */
+    fun dismissUpdate(skip: Boolean) {
+        val info = _update.value ?: return
+        if (skip) updateSettings { it.copy(skippedUpdate = info.version) }
+        _update.value = null
     }
 
     // ------------------------------------------------------------------ GL host

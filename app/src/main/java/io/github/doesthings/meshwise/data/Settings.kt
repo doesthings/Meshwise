@@ -30,7 +30,15 @@ data class SettingsValues(
     val infill: Float = 0.2f,
     val walls: Int = 2,
     val pricePerKg: Float = 20f,
+    val updateChecks: Int = UPDATES_NOT_ASKED,
+    val lastUpdateCheck: Long = 0L,
+    val skippedUpdate: String = "",
 )
+
+/** [SettingsValues.updateChecks]: the user hasn't been asked yet, said yes, or said no. */
+const val UPDATES_NOT_ASKED = 0
+const val UPDATES_ON = 1
+const val UPDATES_OFF = 2
 
 /** App settings persisted in SharedPreferences and exposed as a StateFlow. */
 class Settings(context: Context) {
@@ -68,6 +76,9 @@ class Settings(context: Context) {
             infill = prefs.getFloat("infill", d.infill),
             walls = prefs.getInt("walls", d.walls),
             pricePerKg = prefs.getFloat("pricePerKg", d.pricePerKg),
+            updateChecks = prefs.getInt("updateChecks", d.updateChecks),
+            lastUpdateCheck = prefs.getLong("lastUpdateCheck", d.lastUpdateCheck),
+            skippedUpdate = prefs.getString("skippedUpdate", d.skippedUpdate) ?: d.skippedUpdate,
         )
     }
 
@@ -93,6 +104,9 @@ class Settings(context: Context) {
             .putFloat("infill", v.infill)
             .putInt("walls", v.walls)
             .putFloat("pricePerKg", v.pricePerKg)
+            .putInt("updateChecks", v.updateChecks)
+            .putLong("lastUpdateCheck", v.lastUpdateCheck)
+            .putString("skippedUpdate", v.skippedUpdate)
             .apply()
     }
 }

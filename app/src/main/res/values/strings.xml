@@ -8,8 +8,8 @@
     <string name="clear_recents_message">Remove all entries from the recent files list? Your files are not deleted.</string>
     <string name="library">Library</string>
     <string name="library_subtitle">Models saved inside the app</string>
-    <string name="open_model">Open 3D Model</string>
-    <string name="open_model_formats">STL · OBJ · 3MF · PLY · STEP · IGES · BREP · ZIP</string>
+    <string name="open_model">Open 3D model</string>
+    <string name="open_model_formats">STL · OBJ · 3MF · PLY · OFF · STEP · IGES · BREP · ZIP</string>
     <string name="no_recents_title">Nothing opened yet</string>
     <string name="no_recents_body">Open a model from your phone, or try one of the samples below.</string>
     <string name="samples">Samples</string>
@@ -24,8 +24,8 @@
     <string name="loading_unpacking">Unpacking archive…</string>
     <string name="cancel">Cancel</string>
     <string name="open_failed">Could not open %1$s</string>
-    <string name="cad_crashed">The CAD converter stopped unexpectedly while reading this file.</string>
-    <string name="cad_unavailable">STEP/IGES import is not available on this device architecture.</string>
+    <string name="cad_crashed">The CAD converter stopped while reading this file. It may be damaged or too complex.</string>
+    <string name="cad_unavailable">STEP, IGES and BREP files can\'t be opened on this device\'s processor type.</string>
 
     <!-- Viewer chrome -->
     <string name="home_view">Fit view</string>
@@ -66,8 +66,8 @@
     <string name="measure_hint_radius">Tap three points on a round edge or hole</string>
     <string name="measure_hint_angle">Tap three points: start, vertex, end</string>
     <string name="measure_hint_point">Tap a point to read its coordinates</string>
-    <string name="measure_done">Measured (tap for new)</string>
-    <string name="measure_points_left">%1$d more point(s)</string>
+    <string name="measure_done">Tap to measure again</string>
+    <string name="measure_points_left">Tap %1$d more point(s)</string>
     <string name="radius">Radius (R)</string>
     <string name="diameter">Diameter (D)</string>
     <string name="center_xyz">Center (XYZ)</string>
@@ -77,7 +77,7 @@
     <string name="normal">Normal</string>
     <string name="copy">Copy</string>
     <string name="copied">Copied to clipboard</string>
-    <string name="collinear_points">These points are in a line — pick points around the circle</string>
+    <string name="collinear_points">These points are in a straight line. Pick points spread around the circle.</string>
 
     <!-- Weight -->
     <string name="weight_title">Weight estimate</string>
@@ -93,7 +93,7 @@
     <string name="scope_all">All</string>
     <string name="scope_visible">Visible</string>
     <string name="scope_selected">Selected</string>
-    <string name="not_watertight_warning">The mesh is not closed; volume and weight are approximate.</string>
+    <string name="not_watertight_warning">The mesh has holes, so volume and weight are approximate.</string>
 
     <!-- Color & material -->
     <string name="color_title">Color</string>
@@ -219,17 +219,34 @@
     <string name="show_edges">Feature edges</string>
 
     <!-- Library -->
-    <string name="library_empty">Your library is empty. Save models here from the Save menu to keep them on this device.</string>
+    <string name="library_empty">Your library is empty. To keep a copy of a model on this device, use Save &amp; export → Save to library.</string>
     <string name="delete">Delete</string>
     <string name="rename">Rename</string>
     <string name="import_to_library">Import file</string>
     <string name="delete_confirm">Delete %1$s from the library?</string>
     <string name="ok">OK</string>
 
+    <!-- Updates -->
+    <string name="updates">Updates</string>
+    <string name="update_checks">Check for updates</string>
+    <string name="update_checks_summary">Once a day, asks GitHub for the latest version number. Nothing else is sent.</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_ask_title">Check for updates?</string>
+    <string name="update_ask_body">Meshwise can check GitHub once a day for a new version and ask you before anything is downloaded. It only asks for the latest version number and sends nothing about you or your files.\n\nYou can change this any time in Settings.</string>
+    <string name="update_ask_yes">Check for updates</string>
+    <string name="update_ask_no">No thanks</string>
+    <string name="update_available_title">Meshwise %1$s is available</string>
+    <string name="update_available_body">You have version %1$s. Download the new version from GitHub? It installs over this one and keeps your files, projects and settings.</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="update_skip">Skip this version</string>
+    <string name="update_none">You have the latest version (%1$s)</string>
+    <string name="update_check_failed">Couldn\'t reach GitHub. Check your connection and try again.</string>
+
     <!-- Support -->
     <string name="support">Support</string>
     <string name="support_title">Enjoying Meshwise?</string>
-    <string name="support_body">Meshwise is free and open source, with no ads and no tracking. If it saves you time, consider buying me a coffee. It keeps development going.</string>
+    <string name="support_body">Meshwise is free and open source, with no ads and no tracking. If it saves you time, you can buy me a coffee. It helps keep development going.</string>
     <string name="buy_coffee">Buy me a coffee</string>
     <string name="star_github">Star on GitHub</string>
     <string name="support_cd">Support Meshwise on Ko-fi</string>

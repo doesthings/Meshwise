@@ -43,7 +43,7 @@ const val KOFI_URL = "https://ko-fi.com/doesthings"
 /** Ko-fi's brand coral. */
 val KofiColor = Color(0xFFFF5E5B)
 
-/** Opens [url] in the browser. The app has no network access of its own; links leave the app. */
+/** Opens [url] in the browser. Links leave the app; its only own network use is the optional update check. */
 fun openUrl(context: Context, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

@@ -4,6 +4,9 @@
 
     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
 
+    <!-- Only for the optional update check (off until the user turns it on). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:name=".MeshwiseApp"
         android:allowBackup="true"
