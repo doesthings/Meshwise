@@ -12,12 +12,13 @@ the following components.
 
 ## Open CASCADE Technology (LGPL 2.1)
 
-OCCT is used unmodified. It is built from the upstream `V7_8_1` tag by
-[`scripts/build-occt-android.sh`](scripts/build-occt-android.sh) and statically linked into
-`libmeshwise_cad.so`, which contains only the CAD import bridge (`native/cad/`). To exercise your
-LGPL rights you can rebuild OCCT (modified or not) with that script, rebuild the app with
-`./gradlew assembleRelease`, and install the result. The full corresponding source of this
-app and the build scripts are in this repository.
+OCCT is used unmodified. [`scripts/build-occt-android.sh`](scripts/build-occt-android.sh)
+builds it from the upstream `V7_8_1` tag, and it is statically linked into
+`libmeshwise_cad.so`, which holds only the CAD import bridge (`native/cad/`).
+
+To use your LGPL rights, rebuild OCCT (changed or not) with that script, rebuild the app with
+`./gradlew assembleRelease`, and install the result. The full source of the app and the build
+scripts are in this repository.
 
 License text: <https://github.com/Open-Cascade-SAS/OCCT/blob/V7_8_1/LICENSE_LGPL_21.txt> and
 the exception: <https://github.com/Open-Cascade-SAS/OCCT/blob/V7_8_1/OCCT_LGPL_EXCEPTION.txt>.

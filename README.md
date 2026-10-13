@@ -10,21 +10,24 @@
   <a href="https://ko-fi.com/doesthings"><img alt="Support on Ko-fi" src="https://img.shields.io/badge/Ko--fi-Support%20this%20project-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white"></a>
 </p>
 
-**Meshwise** opens 3D printing and CAD files on your phone in a fraction of a second and
-gives you the tools you actually need to inspect them: section cuts, measurements, wall
-thickness, exploded assemblies, weight estimates and more. The heavy lifting is done by a
-multi-threaded C++ core and an OpenGL ES 3 renderer; STEP and IGES are read by an embedded
-Open CASCADE kernel. No ads, no account, and no network permission: your files never leave the device.
+**Meshwise** is a fast 3D model viewer for Android. Open 3D printing and CAD files on your
+phone and check them before you print: section cuts, measurements, wall thickness, exploded
+assemblies, weight estimates and more.
 
-> **Honest note:** Meshwise is vibe coded. It was built with a lot of help from an AI coding
-> assistant. It works well enough, it's backed by automated tests, and I just wanted to share a
-> good free tool with whoever needs one. If something breaks, please
+- **Free and open source** (MIT). No ads, no account, no paywall.
+- **STEP and IGES included**, through the Open CASCADE kernel.
+- **Private.** No tracking, and your files never leave your phone. The only network use is an
+  optional update check that is off until you turn it on.
+
+> **Honest note:** Meshwise is vibe coded: I built it with a lot of help from an AI coding
+> assistant. It works well enough, it has automated tests, and I just wanted to share a good
+> free tool with whoever needs one. If something breaks, please
 > [open an issue](../../issues/new/choose).
 
 ## Download
 
-Grab the latest APK from the [**Releases**](../../releases/latest) page and open it on your
-phone (you may need to allow installs from your browser or file manager).
+Get the latest APK from the [**Releases**](../../releases/latest) page and open it on your
+phone. You may need to allow installs from your browser or file manager.
 
 | APK | For |
 |---|---|
@@ -33,11 +36,12 @@ phone (you may need to allow installs from your browser or file manager).
 | `Meshwise-x.y.z-x86_64.apk` | Chromebooks and emulators |
 | `Meshwise-x.y.z-universal.apk` | Any device (largest download) |
 
-Requires Android 8.0 (API 26) or newer with OpenGL ES 3.0, which covers essentially all devices
-in use today.
+Meshwise needs Android 8.0 (API 26) or newer with OpenGL ES 3.0. Almost every device in use
+today has both.
 
-Every release APK is signed with the same Meshwise certificate, so updates install over each
-other. To check a download, run `apksigner verify --print-certs` on it; the SHA-256 must be
+Every release is signed with the same Meshwise certificate, so a new version installs over the
+old one. If you turn on the optional update check, the app tells you when a new version is out
+(see [Privacy](#privacy)). To check a download, run `apksigner verify --print-certs` on it. The SHA-256 must be
 `CB:EF:EB:0E:76:73:75:BE:72:D2:93:25:F9:7E:C6:02:B4:B5:D9:B8:E4:EE:CB:9A:EF:39:58:81:8B:BC:5C:38`.
 
 ## Screenshots
@@ -71,19 +75,19 @@ other. To check a download, run `apksigner verify --print-certs` on it; the SHA-
 - STL (binary and ASCII), OBJ with MTL colors, 3MF (multiple objects, colors), PLY (binary and ASCII, vertex colors), OFF
 - STEP, IGES and BREP CAD files with assembly structure, part names and colors (Open CASCADE)
 - ZIP archives: every model inside is loaded and laid out side by side
-- Opens from any app: Files, Google Drive, Gmail, Telegram, WhatsApp, browsers ("Open with" and "Share")
-- Recent files with rendered thumbnails, an on-device library, and five sample models to try
+- Open files from other apps with "Open with" or "Share" (file managers, cloud drives, email, chat apps)
+- Recent files with thumbnails, an on-device library, and five sample models to try
 
-**A fast, good-looking viewer**
-- Smooth orbit, pan and pinch-zoom with inertia; zoom toward your fingers; double-tap to focus a point
+**A fast, clear viewer**
+- Orbit, pan and pinch-zoom with inertia; zoom toward your fingers; double-tap to focus on a point
 - View cube, standard views, perspective or orthographic projection, turntable mode
 - Physically based materials (matte, satin, glossy, resin, rubber, ceramic, steel, aluminium, chrome, gold, silver, copper), studio, outdoor and flat lighting, soft shadows on a grid floor
-- Crease-aware smooth shading, feature edges, wireframe and axis overlays, light and dark themes, Material You colors
+- Smooth shading that keeps sharp edges crisp, feature edges, wireframe and axes, light and dark themes, Material You colors
 
 **Inspect and analyze**
 - **Section analysis**: cut along X, Y or Z, flip the side, type an exact cut value, solid hatched caps
 - **Measure**: point-to-point distance (with ΔX/ΔY/ΔZ), circle through three points (radius, diameter, center), angle, point coordinates and normals; copy results to the clipboard
-- **Dimensions**: tap the info bar for an X/Y/Z bounding-box overlay
+- **Dimensions**: tap the info bar to show the X/Y/Z size of the model
 - **Wall thickness**: gradient or threshold heat map and callouts at the thinnest walls
 - **Overhang** analysis with an adjustable angle, and a **mesh check** for open and non-manifold edges, flipped normals, degenerate faces and shell count
 - **Weight estimate**: PLA, PETG, ABS, ASA, TPU, nylon, resin and more, with infill, wall count, filament length and cost
@@ -94,25 +98,26 @@ other. To check a download, run `apksigner verify --print-certs` on it; the SHA-
 - Paint parts individually or all at once, and assign materials per part
 
 **Save and share**
-- Save projects (camera, colors, materials, explode layout, section) and reopen them later
+- Save projects (`.meshwise`: camera, colors, materials, explode layout, section) and reopen them later
 - Export STL, OBJ (with part names), 3MF (with names and colors) or high-resolution PNG snapshots
 - Share any export straight to another app
 
 ## Performance
 
 The C++ core memory-maps the file, parses it without copies, welds vertices with a hash of
-exact positions, and builds normals, topology and the BVH on all cores. Measured with the
-bundled `fsv_bench` tool on a 4-core x86_64 cloud VM (a recent phone is roughly 2–3× slower):
+exact positions, and builds normals, topology and the BVH on all cores. These numbers come from
+the bundled `fsv_bench` tool on a **4-core x86_64 cloud VM**, not a phone. Expect a phone to be
+slower; real phone timings are welcome in an issue.
 
 | Model | Size | Triangles | Load + mesh processing | Topology | BVH (picking) | Wall thickness |
 |---|---:|---:|---:|---:|---:|---:|
 | Twisted vase (sample) | 3.1 MB | 66 k | 13 ms | 5 ms | 12 ms | 30 ms |
 | Trefoil knot, dense | 97.7 MB | 2.05 M | 0.41 s | 0.17 s | 0.57 s | 1.3 s |
 
-Only loading blocks the first frame. Topology, BVH and analysis run in the background while
-you are already orbiting the model. The renderer packs each vertex into 24 bytes
-(position, 10-bit normal, color, part ID) and only redraws when something changes, so the
-GPU and battery sit idle when you are not touching the screen.
+Only loading has to finish before the first frame. Topology, BVH and analysis run in the
+background while you already orbit the model. The renderer packs each vertex into 24 bytes
+(position, 10-bit normal, color, part ID) and only redraws when something changes, so the GPU
+and battery rest when you are not touching the screen.
 
 ## How it works
 
@@ -137,21 +142,21 @@ GPU and battery sit idle when you are not touching the screen.
   renderer and the unit tests.
 - **`native/jni`**: the JNI bridge (`libmeshwise.so`).
 - **`native/cad`**: Open CASCADE import (`libmeshwise_cad.so`). It runs in its own process, so a
-  malformed CAD file can never take the viewer down, and its results are cached as compact
-  FSM meshes so a STEP file opens instantly the second time.
+  broken CAD file can't crash the viewer. Results are cached as compact FSM meshes, so a STEP
+  file opens much faster the second time.
 - **`app/`**: the Kotlin app (Compose Material 3 UI, view model, file handling, projects).
 
 ## Building
 
-Requirements: JDK 17+, Android SDK 36, NDK `28.2.13676358`, CMake 3.31.6 (Android Studio can
+You need JDK 17+, Android SDK 36, NDK `28.2.13676358` and CMake 3.31.6 (Android Studio can
 install them), plus `git` and `ninja` for the CAD kernel.
 
 ```bash
 git clone https://github.com/doesthings/Meshwise.git
 cd Meshwise
 
-# Optional but recommended: build Open CASCADE for STEP/IGES/BREP (once, ~15-30 min per ABI).
-# Without it the app still builds; CAD formats are then reported as unavailable.
+# Optional but recommended: build Open CASCADE for STEP/IGES/BREP (once, about 20-40 min per ABI).
+# Without it the app still builds, but it can't open CAD formats.
 for abi in arm64-v8a armeabi-v7a x86_64; do scripts/build-occt-android.sh $abi; done
 
 ./gradlew assembleDebug          # app/build/outputs/apk/debug/
@@ -176,25 +181,31 @@ scripts/make_screenshots.sh
 ```
 
 CI runs the native tests, a render smoke test, the JVM tests and a full APK build on every push.
-Tagging `vX.Y.Z` publishes a release (see [docs/RELEASING.md](docs/RELEASING.md)).
+Changing the `VERSION` file on `main` publishes a signed release (see [docs/RELEASING.md](docs/RELEASING.md)).
 
 ## Support
 
 Meshwise is free, open source and ad-free, and it will stay that way. If it saves you time,
-please consider starring the repo or buying me a coffee. It keeps development going.
+you can star the repo or buy me a coffee. Both help keep development going.
 
 <p align="center">
   <a href="https://github.com/doesthings/Meshwise"><img alt="Star on GitHub" src="https://img.shields.io/badge/Star%20on%20GitHub-%E2%AD%90-yellow?style=for-the-badge&logo=github"></a>
   <a href="https://ko-fi.com/doesthings"><img alt="Buy me a coffee on Ko-fi" src="https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white"></a>
 </p>
 
-Bug reports and model files that don't open correctly are just as valuable: please
+Bug reports help just as much, especially files that don't open or look wrong:
 [open an issue](../../issues/new/choose).
 
 ## Privacy
 
-Meshwise has **no internet permission**. It reads only the files you open, keeps recents,
-thumbnails, projects and the library in its private storage, and collects nothing.
+Meshwise collects nothing. It reads only the files you open and keeps recent files,
+thumbnails, projects and the library in its private storage. Your files never leave your phone.
+
+The app's only network use is the **optional update check**. On first launch Meshwise asks
+whether it may check for updates; the answer is no until you say yes, and you can change it in
+Settings at any time. When it's on, the app asks GitHub for the latest release at most once a
+day. It sends nothing else, and nothing is downloaded until you tap **Download**. The Ko-fi
+and GitHub buttons open your browser.
 
 ## License
 
