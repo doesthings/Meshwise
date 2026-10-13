@@ -104,6 +104,10 @@ class Engine {
         return PickHit(part, Vec3(pickBuf[0], pickBuf[1], pickBuf[2]), Vec3(pickBuf[3], pickBuf[4], pickBuf[5]), pickBuf[6] > 0.5f)
     }
 
+    /** What a measuring tap at (x, y) picks: a corner, edge, hole, face… or null for a miss. */
+    fun measurePick(x: Float, y: Float, snapPx: Float): MeasureFeature? =
+        NativeLib.nativeMeasurePick(handle, x, y, snapPx)?.let(MeasureFeature::parse)
+
     // ---- parts
     fun setPartColor(part: Int, argb: Int) = NativeLib.nativeSetPartColor(handle, part, argb)
     fun setPartVisible(part: Int, v: Boolean) = NativeLib.nativeSetPartVisible(handle, part, v)

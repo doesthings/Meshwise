@@ -220,6 +220,8 @@ void Engine::setModel(std::shared_ptr<const Model> model, bool resetView) {
     model_ = std::move(model);
     topo_.reset();
     bvh_.reset();
+    adj_.reset();
+    edges_.reset();
     scalars_.reset();
     parts_.clear();
     explode_ = 0.f;
@@ -258,6 +260,15 @@ bool Engine::setBVH(std::shared_ptr<const ModelBVH> bvh, const Model* source) {
     std::lock_guard<std::mutex> lk(mu_);
     if (source && source != model_.get()) return false;
     bvh_ = std::move(bvh);
+    return true;
+}
+
+bool Engine::setFeatureData(std::shared_ptr<const TriangleAdjacency> adj, std::shared_ptr<const EdgeGraph> edges,
+                            const Model* source) {
+    std::lock_guard<std::mutex> lk(mu_);
+    if (source && source != model_.get()) return false;
+    adj_ = std::move(adj);
+    edges_ = std::move(edges);
     return true;
 }
 
@@ -427,6 +438,45 @@ PickResult Engine::pick(float px, float py) const {
         }
     }
     return r;
+}
+
+Feature Engine::measurePick(float px, float py, float snapPx) const {
+    Feature f;
+    PickResult r = pick(px, py);
+    if (!r.hit) return f;
+    std::shared_ptr<const Model> model;
+    std::shared_ptr<const TriangleAdjacency> adj;
+    std::shared_ptr<const EdgeGraph> edges;
+    Vec3 off, eye;
+    float wpp, dist;
+    bool ortho;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        model = model_;
+        adj = adj_;
+        edges = edges_;
+        off = partOffsetLocked(r.part);
+        wpp = camera_.worldPerPixel();
+        eye = camera_.eye();
+        dist = camera_.state().distance;
+        ortho = camera_.state().ortho;
+    }
+    f.kind = FeatureKind::Point;
+    f.part = r.part;
+    f.point = f.center = r.point;
+    f.normal = f.axis = r.normal;
+    if (!model || r.onCap) return f;
+    // Pixels to world units at the depth of the hit.
+    float depth = ortho ? 1.f : std::max(0.02f, length(r.point - eye) / std::max(dist, 1e-6f));
+    FeatureQuery q;
+    q.part = r.part;
+    q.triangle = r.triangle;
+    q.point = r.point - off;
+    q.normal = r.normal;
+    q.snapRadius = std::max(1e-6f, snapPx * wpp * depth);
+    f = findFeature(*model, adj.get(), edges.get(), q);
+    f.translate(off);
+    return f;
 }
 
 size_t Engine::partCount() const {

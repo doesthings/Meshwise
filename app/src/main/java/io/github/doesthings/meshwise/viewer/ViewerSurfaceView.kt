@@ -68,7 +68,10 @@ class ViewerSurfaceView(context: Context, private val vm: ViewerViewModel) : GLS
     private var lastCx = 0f
     private var lastCy = 0f
 
-    private enum class Mode { Idle, Pending, Orbit, Multi, AfterMulti }
+    private enum class Mode { Idle, Pending, Orbit, Multi, AfterMulti, Precision }
+
+    // The precision cursor floats this far above the finger so the finger doesn't hide it.
+    private val cursorLift = 72f * resources.displayMetrics.density
 
     private val gestures = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         // Tools that place points react instantly; elsewhere wait to tell taps from double taps.
@@ -88,7 +91,14 @@ class ViewerSurfaceView(context: Context, private val vm: ViewerViewModel) : GLS
         }
 
         override fun onLongPress(e: MotionEvent) {
-            if (mode == Mode.Pending) vm.onLongPress(e.x, e.y)
+            if (mode != Mode.Pending) return
+            if (vm.measuring) {
+                mode = Mode.Precision
+                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                vm.measureHover(e.x, e.y - cursorLift)
+            } else {
+                vm.onLongPress(e.x, e.y)
+            }
         }
     })
 
@@ -106,6 +116,7 @@ class ViewerSurfaceView(context: Context, private val vm: ViewerViewModel) : GLS
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (event.pointerCount >= 2) {
+                    if (mode == Mode.Precision) vm.cancelHover()
                     mode = Mode.Multi
                     lastCx = (event.getX(0) + event.getX(1)) / 2f
                     lastCy = (event.getY(0) + event.getY(1)) / 2f
@@ -124,6 +135,7 @@ class ViewerSurfaceView(context: Context, private val vm: ViewerViewModel) : GLS
                         lastCx = cx; lastCy = cy; lastSpan = s
                         requestRender()
                     }
+                    event.pointerCount == 1 && mode == Mode.Precision -> vm.measureHover(event.x, event.y - cursorLift)
                     event.pointerCount == 1 -> {
                         val x = event.x
                         val y = event.y
@@ -153,6 +165,7 @@ class ViewerSurfaceView(context: Context, private val vm: ViewerViewModel) : GLS
                 }
             }
             MotionEvent.ACTION_UP -> {
+                if (mode == Mode.Precision) vm.commitHover()
                 velocity?.let { vt ->
                     vt.addMovement(event)
                     vt.computeCurrentVelocity(1000)
@@ -169,6 +182,7 @@ class ViewerSurfaceView(context: Context, private val vm: ViewerViewModel) : GLS
                 requestRender()
             }
             MotionEvent.ACTION_CANCEL -> {
+                if (mode == Mode.Precision) vm.cancelHover()
                 velocity?.recycle()
                 velocity = null
                 mode = Mode.Idle

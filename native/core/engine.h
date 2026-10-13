@@ -17,6 +17,7 @@
 #include "bvh.h"
 #include "camera.h"
 #include "model.h"
+#include "feature_finder.h"
 #include "renderer.h"
 
 namespace fsv {
@@ -63,6 +64,9 @@ public:
     bool setTopology(std::shared_ptr<const Topology> topo, const Model* source = nullptr);
     bool setBVH(std::shared_ptr<const ModelBVH> bvh, const Model* source = nullptr);
     std::shared_ptr<const ModelBVH> bvh() const;
+    // Adjacency and feature-edge chains for measuring (built with the other analysis).
+    bool setFeatureData(std::shared_ptr<const TriangleAdjacency> adj, std::shared_ptr<const EdgeGraph> edges,
+                        const Model* source = nullptr);
     bool setScalars(std::shared_ptr<const std::vector<float>> scalars, const Model* source = nullptr);
 
     // Camera.
@@ -92,6 +96,9 @@ public:
 
     // Picking.
     PickResult pick(float px, float py) const;
+    // What a measuring tap at a pixel means: a corner, edge, hole, face… (world space).
+    // Edges and corners within `snapPx` pixels of the tap win over the surface.
+    Feature measurePick(float px, float py, float snapPx) const;
 
     // Part state.
     size_t partCount() const;
@@ -144,6 +151,8 @@ private:
     std::shared_ptr<const Model> model_;
     std::shared_ptr<const Topology> topo_;
     std::shared_ptr<const ModelBVH> bvh_;
+    std::shared_ptr<const TriangleAdjacency> adj_;
+    std::shared_ptr<const EdgeGraph> edges_;
     std::shared_ptr<const std::vector<float>> scalars_;
     std::vector<PartState> parts_;
     float explode_ = 0.f;

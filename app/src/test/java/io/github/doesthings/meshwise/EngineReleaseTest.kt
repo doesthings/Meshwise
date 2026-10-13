@@ -66,6 +66,7 @@ class EngineReleaseTest {
         e.setCamera(CameraState(Vec3(0f, 0f, 0f), 10f, 0f, 0f, false), false)
         e.cameraFrame()
         assertNull(e.pick(1f, 1f))
+        assertNull(e.measurePick(1f, 1f, 10f))
 
         e.setPartColor(0, 0)
         e.setPartVisible(0, false)

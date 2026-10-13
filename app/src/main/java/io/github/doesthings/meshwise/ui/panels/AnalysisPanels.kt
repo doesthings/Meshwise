@@ -60,6 +60,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.doesthings.meshwise.R
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import io.github.doesthings.meshwise.data.Units
+import io.github.doesthings.meshwise.engine.MeasureFeature
+import io.github.doesthings.meshwise.engine.PickHit
+import io.github.doesthings.meshwise.ui.viewer.FeatureColors
+import io.github.doesthings.meshwise.ui.viewer.formatMeasure
+import io.github.doesthings.meshwise.ui.viewer.measureSummary
+import io.github.doesthings.meshwise.viewer.MeasureResult
+import io.github.doesthings.meshwise.viewer.SmartMeasure
+import io.github.doesthings.meshwise.viewer.ValueKind
 import io.github.doesthings.meshwise.engine.Engine
 import io.github.doesthings.meshwise.ui.components.PillButton
 import io.github.doesthings.meshwise.ui.components.RoundIconButton
@@ -89,93 +101,204 @@ fun MeasurePanel(vm: ViewerViewModel) {
     val st by vm.measure.collectAsStateWithLifecycle()
     val s by vm.settings.collectAsStateWithLifecycle()
     val ready by vm.analysisReady.collectAsStateWithLifecycle()
+    val hover by vm.measureHover.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val res = context.resources
     val u = s.units
     var showDiameter by remember { mutableStateOf(false) }
     val modes = MeasureMode.entries
-    val modeLabels = listOf(
-        stringResource(R.string.measure_distance), stringResource(R.string.measure_radius),
-        stringResource(R.string.measure_angle), stringResource(R.string.measure_point),
+    val modeLabels = mapOf(
+        MeasureMode.Smart to stringResource(R.string.measure_smart),
+        MeasureMode.Distance to stringResource(R.string.measure_distance),
+        MeasureMode.Angle to stringResource(R.string.measure_angle),
+        MeasureMode.Circle to stringResource(R.string.measure_radius),
     )
+    val smart = st.smartResult
     val header = when {
+        hover != null -> stringResource(R.string.measure_hint_hold)
+        st.mode == MeasureMode.Smart -> when (st.features.size) {
+            0 -> stringResource(R.string.measure_smart)
+            1 -> stringResource(SmartMeasure.title(st.features[0]))
+            else -> smart?.let { stringResource(it.title) } ?: ""
+        }
         st.complete -> stringResource(R.string.measure_done)
         st.points.isEmpty() -> when (st.mode) {
             MeasureMode.Distance -> stringResource(R.string.measure_hint_distance)
             MeasureMode.Circle -> stringResource(R.string.measure_hint_radius)
             MeasureMode.Angle -> stringResource(R.string.measure_hint_angle)
-            MeasureMode.Point -> stringResource(R.string.measure_hint_point)
+            MeasureMode.Smart -> ""
         }
         else -> stringResource(R.string.measure_points_left, st.mode.points - st.points.size)
     }
     ToolPanel(
         header, if (st.complete) Icons.Rounded.Check else Icons.Rounded.Straighten, onClose = { vm.selectTool(Tool.None) },
         actions = {
-            RoundIconButton(Icons.AutoMirrored.Rounded.Undo, stringResource(R.string.undo), enabled = st.points.isNotEmpty()) { vm.undoMeasurePoint() }
+            if (smart != null && st.features.size == 2) {
+                RoundIconButton(Icons.Rounded.PushPin, stringResource(R.string.keep_measurement)) { vm.keepMeasurement() }
+                Spacer(Modifier.width(6.dp))
+            }
+            RoundIconButton(Icons.AutoMirrored.Rounded.Undo, stringResource(R.string.undo), enabled = !st.empty) { vm.undoMeasurePoint() }
             Spacer(Modifier.width(6.dp))
         },
     ) {
-        Segmented(modes, st.mode, label = { modeLabels[it.ordinal] }, onSelect = vm::setMeasureMode)
-        if (!ready) LinearProgressIndicator(Modifier.fillMaxWidth())
-        val p = st.points
-        when (st.mode) {
-            MeasureMode.Distance -> if (p.size == 2) {
-                val d = p[1].point - p[0].point
-                val text = Fmt.length(d.length().toDouble(), u)
-                ValueRow(stringResource(R.string.distance), text, highlight = true, onClick = { copy(context, text) })
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    AxisValue("ΔX", Fmt.lengthShort(kotlin.math.abs(d.x).toDouble(), u), LocalExtraColors.current.axisX)
-                    AxisValue("ΔY", Fmt.lengthShort(kotlin.math.abs(d.y).toDouble(), u), LocalExtraColors.current.axisY)
-                    AxisValue("ΔZ", Fmt.lengthShort(kotlin.math.abs(d.z).toDouble(), u), LocalExtraColors.current.axisZ)
-                }
-            }
-            MeasureMode.Circle -> if (p.size == 3) {
-                val circ = Engine.circleThrough(p[0].point, p[1].point, p[2].point)
-                if (circ == null) {
-                    Text(stringResource(R.string.collinear_points), color = MaterialTheme.colorScheme.error)
-                } else {
-                    val (c, _, r) = circ
-                    ValueRow(stringResource(R.string.radius), Fmt.length(r.toDouble(), u), highlight = !showDiameter,
-                        icon = if (!showDiameter) Icons.Rounded.RadioButtonChecked else Icons.Rounded.RadioButtonUnchecked) { showDiameter = false }
-                    HorizontalDivider()
-                    ValueRow(stringResource(R.string.diameter), Fmt.length(2.0 * r, u), highlight = showDiameter,
-                        icon = if (showDiameter) Icons.Rounded.RadioButtonChecked else Icons.Rounded.RadioButtonUnchecked) { showDiameter = true }
-                    HorizontalDivider()
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.ControlCamera, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.center_xyz), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        AxisValue("X:", Fmt.number(c.x * u.factor), null)
-                        AxisValue("Y:", Fmt.number(c.y * u.factor), null)
-                        AxisValue("Z:", Fmt.number(c.z * u.factor), null)
-                    }
-                    val txt = if (showDiameter) Fmt.length(2.0 * r, u) else Fmt.length(r.toDouble(), u)
-                    PillButton(stringResource(R.string.copy), icon = Icons.Rounded.ContentCopy) { copy(context, txt) }
-                }
-            }
-            MeasureMode.Angle -> if (p.size == 3) {
-                val v1 = (p[0].point - p[1].point).normalized()
-                val v2 = (p[2].point - p[1].point).normalized()
-                val ang = Fmt.degrees(acos(v1.dot(v2).coerceIn(-1f, 1f)).toDouble())
-                ValueRow(stringResource(R.string.angle), ang, highlight = true) { copy(context, ang) }
-            }
-            MeasureMode.Point -> p.firstOrNull()?.let { h ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    AxisValue("X:", Fmt.number(h.point.x * u.factor), LocalExtraColors.current.axisX)
-                    AxisValue("Y:", Fmt.number(h.point.y * u.factor), LocalExtraColors.current.axisY)
-                    AxisValue("Z:", Fmt.number(h.point.z * u.factor), LocalExtraColors.current.axisZ)
-                }
-                Text(
-                    "${stringResource(R.string.normal)}: %.3f, %.3f, %.3f".format(Locale.US, h.normal.x, h.normal.y, h.normal.z),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        Segmented(modes, st.mode, label = { modeLabels.getValue(it) }, onSelect = vm::setMeasureMode)
+        if (!ready) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.measure_waiting), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (p.isNotEmpty() && !st.complete) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                p.indices.forEach { i -> Box(Modifier.size(12.dp).clip(CircleShape).background(MeasureColors[i % 3])) }
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (st.mode == MeasureMode.Smart) {
+                SmartContent(vm, st.features, smart, u)
+            } else {
+                PointContent(st.mode, st.points, u, showDiameter, { showDiameter = it }) { copy(context, it) }
             }
+            if (st.kept.isNotEmpty()) {
+                HorizontalDivider()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.kept_measurements), style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f),
+                    )
+                    PillButton(stringResource(R.string.copy_all), icon = Icons.Rounded.ContentCopy) {
+                        copy(context, st.kept.joinToString("\n") { measureSummary(it.result, u, res) })
+                    }
+                }
+                st.kept.forEachIndexed { i, k ->
+                    val primary = k.result.primary?.let { formatMeasure(it, u, res) } ?: ""
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(k.result.title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text(primary, style = ValueStyle.copy(fontSize = 16.sp), color = LocalExtraColors.current.dimension)
+                        Spacer(Modifier.width(4.dp))
+                        Box(Modifier.size(36.dp).clip(CircleShape).clickable { vm.removeKept(i) }, contentAlignment = Alignment.Center) {
+                            Icon(Icons.Rounded.Delete, stringResource(R.string.delete), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SmartContent(vm: ViewerViewModel, features: List<MeasureFeature>, result: MeasureResult?, u: Units) {
+    val context = LocalContext.current
+    val res = context.resources
+    val scheme = MaterialTheme.colorScheme
+    val extra = LocalExtraColors.current
+    if (features.isEmpty()) {
+        Text(stringResource(R.string.measure_hint_smart), style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+        return
+    }
+    // What is picked: A and B in their own colours.
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        features.forEachIndexed { i, f ->
+            Row(
+                Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(scheme.onSurface.copy(alpha = 0.06f)).padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(FeatureColors[i % FeatureColors.size]))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(SmartMeasure.title(f)), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            }
+        }
+        if (features.size == 1) {
+            Text(
+                stringResource(R.string.measure_hint_smart_second), style = MaterialTheme.typography.labelSmall,
+                color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f).align(Alignment.CenterVertically),
+            )
+        }
+    }
+    val r = result ?: return
+    val primary = r.primary
+    if (primary != null) {
+        val text = formatMeasure(primary, u, res)
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { copy(context, text) }.padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(primary.label), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text(text, style = ValueStyle.copy(fontSize = 24.sp), color = extra.dimension)
+        }
+    }
+    val others = r.values.filter { it !== primary }
+    if (others.isNotEmpty()) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            others.forEach { v ->
+                val text = formatMeasure(v, u, res)
+                Row(
+                    Modifier.clip(RoundedCornerShape(10.dp)).background(scheme.onSurface.copy(alpha = 0.06f))
+                        .clickable { copy(context, text) }.padding(horizontal = 8.dp, vertical = 5.dp),
+                ) {
+                    Text(stringResource(v.label) + " ", style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
+                    Text(text, style = MaterialTheme.typography.labelMedium, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+/** The point-based modes: distance, angle and circle through three points. */
+@Composable
+private fun PointContent(
+    mode: MeasureMode,
+    p: List<PickHit>,
+    u: Units,
+    showDiameter: Boolean,
+    setShowDiameter: (Boolean) -> Unit,
+    copy: (String) -> Unit,
+) {
+    when (mode) {
+        MeasureMode.Distance -> if (p.size == 2) {
+            val d = p[1].point - p[0].point
+            val text = Fmt.length(d.length().toDouble(), u)
+            ValueRow(stringResource(R.string.distance), text, highlight = true, onClick = { copy(text) })
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                AxisValue("ΔX", Fmt.lengthShort(kotlin.math.abs(d.x).toDouble(), u), LocalExtraColors.current.axisX)
+                AxisValue("ΔY", Fmt.lengthShort(kotlin.math.abs(d.y).toDouble(), u), LocalExtraColors.current.axisY)
+                AxisValue("ΔZ", Fmt.lengthShort(kotlin.math.abs(d.z).toDouble(), u), LocalExtraColors.current.axisZ)
+            }
+        }
+        MeasureMode.Circle -> if (p.size == 3) {
+            val circ = Engine.circleThrough(p[0].point, p[1].point, p[2].point)
+            if (circ == null) {
+                Text(stringResource(R.string.collinear_points), color = MaterialTheme.colorScheme.error)
+            } else {
+                val (c, _, r) = circ
+                ValueRow(stringResource(R.string.radius), Fmt.length(r.toDouble(), u), highlight = !showDiameter,
+                    icon = if (!showDiameter) Icons.Rounded.RadioButtonChecked else Icons.Rounded.RadioButtonUnchecked) { setShowDiameter(false) }
+                HorizontalDivider()
+                ValueRow(stringResource(R.string.diameter), Fmt.length(2.0 * r, u), highlight = showDiameter,
+                    icon = if (showDiameter) Icons.Rounded.RadioButtonChecked else Icons.Rounded.RadioButtonUnchecked) { setShowDiameter(true) }
+                HorizontalDivider()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.ControlCamera, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.center_xyz), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    AxisValue("X:", Fmt.number(c.x * u.factor), null)
+                    AxisValue("Y:", Fmt.number(c.y * u.factor), null)
+                    AxisValue("Z:", Fmt.number(c.z * u.factor), null)
+                }
+                val txt = if (showDiameter) Fmt.length(2.0 * r, u) else Fmt.length(r.toDouble(), u)
+                PillButton(stringResource(R.string.copy), icon = Icons.Rounded.ContentCopy) { copy(txt) }
+            }
+        }
+        MeasureMode.Angle -> if (p.size == 3) {
+            val v1 = (p[0].point - p[1].point).normalized()
+            val v2 = (p[2].point - p[1].point).normalized()
+            val ang = Fmt.degrees(acos(v1.dot(v2).coerceIn(-1f, 1f)).toDouble())
+            ValueRow(stringResource(R.string.angle), ang, highlight = true) { copy(ang) }
+        }
+        MeasureMode.Smart -> {}
+    }
+    if (p.isNotEmpty() && p.size < mode.points) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            p.indices.forEach { i -> Box(Modifier.size(12.dp).clip(CircleShape).background(MeasureColors[i % 3])) }
         }
     }
 }

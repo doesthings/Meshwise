@@ -34,6 +34,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -57,13 +59,19 @@ import io.github.doesthings.meshwise.data.Units
 import io.github.doesthings.meshwise.engine.Bounds
 import io.github.doesthings.meshwise.engine.CameraFrame
 import io.github.doesthings.meshwise.engine.Engine
+import io.github.doesthings.meshwise.engine.FeatureKind
+import io.github.doesthings.meshwise.engine.MeasureFeature
 import io.github.doesthings.meshwise.engine.PickHit
 import io.github.doesthings.meshwise.engine.Vec3
 import io.github.doesthings.meshwise.ui.theme.LocalExtraColors
 import io.github.doesthings.meshwise.util.Fmt
 import io.github.doesthings.meshwise.viewer.AnalyzeTab
 import io.github.doesthings.meshwise.viewer.LoadingState
+import io.github.doesthings.meshwise.viewer.MeasureHover
 import io.github.doesthings.meshwise.viewer.MeasureMode
+import io.github.doesthings.meshwise.viewer.MeasureResult
+import io.github.doesthings.meshwise.viewer.SmartMeasure
+import io.github.doesthings.meshwise.viewer.ValueKind
 import io.github.doesthings.meshwise.viewer.MeasureState
 import io.github.doesthings.meshwise.viewer.Tool
 import io.github.doesthings.meshwise.viewer.ViewerViewModel
@@ -94,6 +102,16 @@ fun OverlayLayer(vm: ViewerViewModel) {
     val measurer = rememberTextMeasurer()
     val units = settings.units
     val insets by vm.viewInsets.collectAsStateWithLifecycle()
+    val hover by vm.measureHover.collectAsStateWithLifecycle()
+    val res = LocalContext.current.resources
+    // Label texts are prepared here: string resources are not available inside the draw scope.
+    val smart = if (measure.mode == MeasureMode.Smart) measure.smartResult else null
+    val smartLabel = smart?.primary?.let { formatMeasure(it, units, res) }
+    val keptLabels = measure.kept.map { k -> k.result.primary?.let { formatMeasure(it, units, res) } ?: "" }
+    val hoverLabel = hover?.feature?.let { f ->
+        val r = SmartMeasure.single(f)
+        res.getString(r.title) + (r.primary?.takeIf { it.kind != ValueKind.Coordinate && it.kind != ValueKind.Position }?.let { "  " + formatMeasure(it, units, res) } ?: "")
+    }
 
     // Dimension box: the selected part when there is one, else the visible scene.
     val dimBounds = if (selected >= 0 && model != null && selected < model!!.parts.size) {
@@ -104,7 +122,16 @@ fun OverlayLayer(vm: ViewerViewModel) {
         if (camera.width < 2f) return@Canvas
         band = insets.first to (size.height - insets.second).coerceAtLeast(insets.first + 1f)
         if (dims && dimBounds.size.length() > 0f) drawDimensions(camera, dimBounds, units, extra.dimension, measurer)
-        if (tool == Tool.Measure || measure.points.isNotEmpty()) drawMeasure(camera, measure, units, measurer)
+        if (tool == Tool.Measure || !measure.empty || measure.kept.isNotEmpty()) {
+            measure.kept.forEachIndexed { i, k -> drawResult(camera, k.result, keptLabels[i], extra.dimension.copy(alpha = 0.8f), measurer) }
+            if (measure.mode == MeasureMode.Smart) {
+                measure.features.forEachIndexed { i, f -> drawFeature(camera, f, FeatureColors[i % FeatureColors.size]) }
+                if (smart != null && smartLabel != null) drawResult(camera, smart, smartLabel, extra.dimension, measurer)
+            } else {
+                drawMeasure(camera, measure, units, measurer)
+            }
+            hover?.let { drawHover(camera, it, hoverLabel, measurer) }
+        }
         val res = thickness.result
         if (tool == Tool.Analyze && analyzeTab == AnalyzeTab.Thickness && res != null) {
             drawCallouts(camera, res.spots.map { it.position to Fmt.length(it.value.toDouble(), units, 3) }, bounds.center, extra.dimension, measurer)
@@ -120,6 +147,96 @@ fun OverlayLayer(vm: ViewerViewModel) {
         val c = model!!.parts[selected].bounds.center + vm.partOffset(selected)
         GizmoHandles(camera, c, onStart = { vm.beginPartDrag(selected) }) { axis, delta -> vm.movePart(selected, Vec3.axis(axis) * delta) }
     }
+}
+
+/** Colours of the first and second picked feature. */
+val FeatureColors = listOf(Color(0xFF3EE6C4), Color(0xFFFF7AB6))
+
+private fun DrawScope.drawSegments(cam: CameraFrame, seg: FloatArray, color: Color, width: Float, effect: PathEffect? = null) {
+    val path = Path()
+    var i = 0
+    var count = 0
+    while (i + 5 < seg.size && count < 8000) {
+        val p = cam.project(Vec3(seg[i], seg[i + 1], seg[i + 2]))
+        val q = cam.project(Vec3(seg[i + 3], seg[i + 4], seg[i + 5]))
+        if (p != null && q != null) {
+            path.moveTo(p.x, p.y)
+            path.lineTo(q.x, q.y)
+        }
+        i += 6
+        count++
+    }
+    drawPath(path, color, style = Stroke(width, cap = StrokeCap.Round, pathEffect = effect))
+}
+
+private fun DrawScope.drawCross(o: Offset, color: Color) {
+    val r = 7.dp.toPx()
+    drawLine(color, o + Offset(-r, 0f), o + Offset(r, 0f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+    drawLine(color, o + Offset(0f, -r), o + Offset(0f, r), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+}
+
+/** Highlights a picked feature: its outline, plus centre and axis for round ones. */
+private fun DrawScope.drawFeature(cam: CameraFrame, f: MeasureFeature, color: Color) {
+    if (f.outline.isNotEmpty()) {
+        drawSegments(cam, f.outline, Color.Black.copy(alpha = 0.35f), 6.dp.toPx())
+        drawSegments(cam, f.outline, color, 2.5.dp.toPx())
+    }
+    when (f.kind) {
+        FeatureKind.Cylinder -> {
+            val a = cam.project(f.a)
+            val b = cam.project(f.b)
+            if (a != null && b != null) {
+                drawLine(color, a, b, strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
+            }
+            cam.project(f.center)?.let { drawCross(it, color) }
+        }
+        FeatureKind.Circle, FeatureKind.Sphere -> cam.project(f.center)?.let { drawCross(it, color) }
+        FeatureKind.Edge -> {
+            cam.project(f.a)?.let { drawCircle(color, 4.dp.toPx(), it) }
+            cam.project(f.b)?.let { drawCircle(color, 4.dp.toPx(), it) }
+        }
+        else -> cam.project(f.point)?.let {
+            drawCircle(Color.White, 6.dp.toPx(), it)
+            drawCircle(color, 4.5.dp.toPx(), it)
+        }
+    }
+}
+
+/** A measurement: a dimension line with end ticks and its value, or just a label. */
+private fun DrawScope.drawResult(cam: CameraFrame, r: MeasureResult, label: String, color: Color, measurer: TextMeasurer) {
+    val from = r.from?.let { cam.project(it) }
+    val to = r.to?.let { cam.project(it) }
+    if (from != null && to != null) {
+        drawLine(Color.Black.copy(alpha = 0.4f), from, to, strokeWidth = 5.dp.toPx(), cap = StrokeCap.Round)
+        drawLine(color, from, to, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+        val d = to - from
+        val len = d.getDistance()
+        if (len > 1f) {
+            val n = Offset(-d.y / len, d.x / len) * 7.dp.toPx()
+            drawLine(color, from - n, from + n, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(color, to - n, to + n, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+        }
+        labelBox(measurer, label, (from + to) / 2f, color)
+    } else {
+        cam.project(r.anchor)?.let { labelBox(measurer, label, it + Offset(0f, -30.dp.toPx()), color) }
+    }
+}
+
+/** The precision cursor: a crosshair above the finger and a preview of what it would pick. */
+private fun DrawScope.drawHover(cam: CameraFrame, h: MeasureHover, label: String?, measurer: TextMeasurer) {
+    h.feature?.let { drawFeature(cam, it, Color.White.copy(alpha = 0.9f)) }
+    val c = Offset(h.x, h.y)
+    val r = 16.dp.toPx()
+    drawCircle(Color.Black.copy(alpha = 0.45f), r, c, style = Stroke(5.dp.toPx()))
+    drawCircle(Color.White, r, c, style = Stroke(2.dp.toPx()))
+    drawLine(Color.White, c + Offset(-r * 1.6f, 0f), c + Offset(-r * 0.5f, 0f), strokeWidth = 2.dp.toPx())
+    drawLine(Color.White, c + Offset(r * 0.5f, 0f), c + Offset(r * 1.6f, 0f), strokeWidth = 2.dp.toPx())
+    drawLine(Color.White, c + Offset(0f, -r * 1.6f), c + Offset(0f, -r * 0.5f), strokeWidth = 2.dp.toPx())
+    drawLine(Color.White, c + Offset(0f, r * 0.5f), c + Offset(0f, r * 1.6f), strokeWidth = 2.dp.toPx())
+    drawCircle(Color.White, 2.dp.toPx(), c)
+    // Where the finger is.
+    drawLine(Color.White.copy(alpha = 0.35f), c + Offset(0f, r * 1.8f), c + Offset(0f, 72.dp.toPx() - 18.dp.toPx()), strokeWidth = 1.5.dp.toPx())
+    if (label != null) labelBox(measurer, label, c + Offset(0f, -r * 2.6f), Color.White)
 }
 
 private fun pixelsPerUnit(cam: CameraFrame, p: Vec3, dir: Vec3): Float {
@@ -315,11 +432,7 @@ private fun DrawScope.drawMeasure(cam: CameraFrame, st: MeasureState, units: Uni
                 if (b != null) labelBox(measurer, Fmt.degrees(ang.toDouble()), b + Offset(0f, -28.dp.toPx()), MeasureColors[1])
             }
         }
-        MeasureMode.Point -> pts.firstOrNull()?.let { p ->
-            cam.project(p.point)?.let { o ->
-                labelBox(measurer, "%.2f, %.2f, %.2f".format(java.util.Locale.US, p.point.x, p.point.y, p.point.z), o + Offset(0f, -30.dp.toPx()), MeasureColors[0])
-            }
-        }
+        MeasureMode.Smart -> {}
     }
     pts.forEachIndexed { i, p -> drawDisc(cam, p.point, p.normal, MeasureColors[i % MeasureColors.size]) }
 }

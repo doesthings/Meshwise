@@ -32,6 +32,7 @@ import io.github.doesthings.meshwise.engine.CameraFrame
 import io.github.doesthings.meshwise.engine.Engine
 import io.github.doesthings.meshwise.engine.ExportFormat
 import io.github.doesthings.meshwise.engine.MaterialPreset
+import io.github.doesthings.meshwise.engine.MeasureFeature
 import io.github.doesthings.meshwise.engine.MeshCheck
 import io.github.doesthings.meshwise.engine.ModelInfo
 import io.github.doesthings.meshwise.engine.NativeProgress
@@ -116,6 +117,8 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     val section = _section.asStateFlow()
     private val _measure = MutableStateFlow(MeasureState())
     val measure = _measure.asStateFlow()
+    private val _measureHover = MutableStateFlow<MeasureHover?>(null)
+    val measureHover = _measureHover.asStateFlow()
     private val _showDimensions = MutableStateFlow(false)
     val showDimensions = _showDimensions.asStateFlow()
     private val _paintColor = MutableStateFlow(Palette.swatches[12])
@@ -370,6 +373,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         _manualExplode.value = false
         offsetUndo.clear()
         _measure.value = MeasureState(mode = _measure.value.mode)
+        _measureHover.value = null
         _thickness.value = ThicknessUi()
         _overhang.value = OverhangUi()
         _meshCheck.value = null
@@ -554,7 +558,10 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         }
         if (next == Tool.Analyze) applyAnalyzeMode()
         if (prev == Tool.Explode && next != Tool.Explode) setManualExplode(false)
-        if (next != Tool.Measure && prev == Tool.Measure) _measure.update { it.copy(points = emptyList()) }
+        if (next != Tool.Measure && prev == Tool.Measure) {
+            _measure.update { it.copy(points = emptyList(), features = emptyList()) }
+            _measureHover.value = null
+        }
     }
 
     // ---- camera
@@ -603,9 +610,13 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     val instantTaps: Boolean get() = _tool.value == Tool.Measure || _tool.value == Tool.Color
 
     fun onTap(x: Float, y: Float) {
+        if (_tool.value == Tool.Measure) {
+            measureAt(x, y)
+            requestRender()
+            return
+        }
         val hit = engine.pick(x, y)
         when (_tool.value) {
-            Tool.Measure -> addMeasurePoint(hit)
             Tool.Color -> if (hit != null) paintPart(hit.part)
             Tool.Explode -> if (_manualExplode.value) selectPart(hit?.part ?: -1)
             else -> selectPart(if (hit != null && hit.part != _selected.value) hit.part else -1)
@@ -828,7 +839,69 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
 
     // ---- measure
     fun setMeasureMode(m: MeasureMode) {
-        _measure.update { it.copy(mode = m, points = emptyList()) }
+        _measure.update { it.copy(mode = m, points = emptyList(), features = emptyList()) }
+    }
+
+    /** Edges and corners closer than this to a tap (in pixels) win over the surface. */
+    private val snapPx: Float get() = 12f * density
+
+    /** A measuring tap: picks a feature (Smart) or a snapped point (other modes). */
+    fun measureAt(x: Float, y: Float) {
+        val f = engine.measurePick(x, y, snapPx) ?: return
+        if (_measure.value.mode == MeasureMode.Smart) addFeature(f) else addMeasurePoint(f.toPickHit())
+    }
+
+    private fun addFeature(f: MeasureFeature) {
+        _measure.update { st ->
+            val same = st.features.indexOfFirst { it.sameAs(f) }
+            val next = when {
+                same >= 0 -> st.features.filterIndexed { i, _ -> i != same }
+                st.features.size >= 2 -> listOf(f)
+                else -> st.features + f
+            }
+            st.copy(features = next)
+        }
+    }
+
+    /** Precision cursor: shows what a tap at (x, y) would pick, without picking it. */
+    fun measureHover(x: Float, y: Float) {
+        // Finding a feature can take a few milliseconds on huge models: refresh it at most
+        // ~20 times a second while the cursor itself follows every move.
+        val now = System.nanoTime()
+        val prev = _measureHover.value
+        val feature = if (prev == null || now - lastHoverPick > 50_000_000L) {
+            lastHoverPick = now
+            engine.measurePick(x, y, snapPx)
+        } else prev.feature
+        _measureHover.value = MeasureHover(x, y, feature)
+        requestRender()
+    }
+
+    private var lastHoverPick = 0L
+
+    fun commitHover() {
+        val h = _measureHover.value ?: return
+        _measureHover.value = null
+        val f = engine.measurePick(h.x, h.y, snapPx) ?: return
+        if (_measure.value.mode == MeasureMode.Smart) addFeature(f) else addMeasurePoint(f.toPickHit())
+    }
+
+    fun cancelHover() {
+        _measureHover.value = null
+    }
+
+    val measuring: Boolean get() = _tool.value == Tool.Measure
+
+    /** Keeps the current Smart result on screen and starts a new measurement. */
+    fun keepMeasurement() {
+        _measure.update { st ->
+            val r = st.smartResult ?: return@update st
+            st.copy(kept = (st.kept + KeptMeasure(r, st.features)).takeLast(20), features = emptyList())
+        }
+    }
+
+    fun removeKept(i: Int) {
+        _measure.update { st -> st.copy(kept = st.kept.filterIndexed { k, _ -> k != i }) }
     }
 
     private fun addMeasurePoint(hit: PickHit?) {
@@ -840,11 +913,11 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun undoMeasurePoint() {
-        _measure.update { it.copy(points = it.points.dropLast(1)) }
+        _measure.update { if (it.mode == MeasureMode.Smart) it.copy(features = it.features.dropLast(1)) else it.copy(points = it.points.dropLast(1)) }
     }
 
     fun clearMeasure() {
-        _measure.update { it.copy(points = emptyList(), history = emptyList()) }
+        _measure.update { it.copy(points = emptyList(), features = emptyList(), kept = emptyList(), history = emptyList()) }
     }
 
     // ---- analysis

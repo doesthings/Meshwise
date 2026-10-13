@@ -153,14 +153,18 @@ class ScreenshotTest {
         vm.updateSettings { it.copy(background = 2) }
         open(ModelSource.FromAsset("samples/spur_gear.stl"))
         vm.selectTool(Tool.Measure)
-        vm.setMeasureMode(MeasureMode.Circle)
-        val cam = vm.camera.value
-        // Three tooth tips on the top face: the tip circle of the gear.
-        listOf(30.0, 150.0, 270.0).forEach { deg ->
-            val a = Math.toRadians(deg)
-            val p = Vec3((25.2 * cos(a)).toFloat(), (25.2 * sin(a)).toFloat(), 10f)
-            val s = cam.project(p)!!
-            vm.onTap(s.x, s.y)
+        vm.setMeasureMode(MeasureMode.Smart)
+        // Smart measuring: the far walls of two lightening holes (Ø 6.88 mm, 60° apart).
+        val f = vm.camera.value.forward
+        val away = Vec3(f.x, f.y, 0f).normalized()
+        val ring = 21.5f * 0.68f
+        val centers = (0 until 6).map { k ->
+            val a = Math.toRadians(60.0 * k)
+            Vec3((ring * cos(a)).toFloat(), (ring * sin(a)).toFloat(), 5f)
+        }.sortedBy { it.dot(away) }
+        listOf(centers[0], centers[1]).forEach { c ->
+            val s = vm.camera.value.project(c + away * 3.44f)!!
+            vm.measureAt(s.x, s.y)
         }
         shoot("04_measure")
         vm.updateSettings { it.copy(background = 0) }

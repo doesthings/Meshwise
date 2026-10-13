@@ -53,7 +53,7 @@ old one. If you turn on the optional update check, the app tells you when a new 
     <td align="center"><img src="docs/screenshots/03_section.png" width="260"><br><sub><b>Section analysis</b>: hatched caps, live plane</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/04_measure.png" width="260"><br><sub><b>Measure</b>: circle through 3 points, R / D / center</sub></td>
+    <td align="center"><img src="docs/screenshots/04_measure.png" width="260"><br><sub><b>Smart measure</b>: tap two holes, get center distance and wall</sub></td>
     <td align="center"><img src="docs/screenshots/05_thickness.png" width="260"><br><sub><b>Wall thickness</b>: heat map, thinnest-wall callouts</sub></td>
     <td align="center"><img src="docs/screenshots/06_explode.png" width="260"><br><sub><b>Explode</b>: automatic or manual with gizmo</sub></td>
   </tr>
@@ -92,7 +92,8 @@ old one. If you turn on the optional update check, the app tells you when a new 
 
 **Inspect and analyze**
 - **Section analysis**: cut along X, Y or Z, flip the side, type an exact cut value, solid hatched caps
-- **Measure**: point-to-point distance (with ΔX/ΔY/ΔZ), circle through three points (radius, diameter, center), angle, point coordinates and normals; copy results to the clipboard
+- **Smart measure**: tap a hole, shaft, round edge, flat face, straight edge or corner and Meshwise recognises it, even in a plain STL. One tap gives a hole's diameter and depth, a face's area or an edge's length; two taps give what makes sense between them (wall thickness between parallel faces, the angle between faces, center distance and wall between holes, axis-to-face distance, or point-to-point with ΔX/ΔY/ΔZ). Hold and drag for a precision crosshair, keep several results on screen, copy them as text
+- **Point modes**: free point-to-point distance, circle through three points (radius, diameter, center) and angle, all snapping to corners and edges
 - **Dimensions**: tap the info bar to show the X/Y/Z size of the model
 - **Wall thickness**: gradient or threshold heat map and callouts at the thinnest walls
 - **Overhang** analysis with an adjustable angle, and a **mesh check** for open and non-manifold edges, flipped normals, degenerate faces and shell count

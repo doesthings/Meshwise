@@ -151,6 +151,65 @@ data class RenderOptions(
     private val Boolean.i get() = if (this) 1 else 0
 }
 
+/** Kinds of measuring features, matching native/core/feature_finder.h. */
+enum class FeatureKind { None, Point, Vertex, Edge, Circle, Plane, Cylinder, Sphere }
+
+/** A feature picked for measuring (world coordinates). */
+class MeasureFeature(
+    val kind: FeatureKind,
+    val part: Int,
+    val point: Vec3,
+    val normal: Vec3,
+    val center: Vec3,
+    val axis: Vec3,
+    val a: Vec3,
+    val b: Vec3,
+    val radius: Float,
+    val length: Float,
+    val area: Double,
+    val fitError: Float,
+    val inner: Boolean,
+    val closed: Boolean,
+    /** Line list (x, y, z pairs) outlining the feature. */
+    val outline: FloatArray,
+) {
+    val isRound: Boolean get() = kind == FeatureKind.Circle || kind == FeatureKind.Cylinder || kind == FeatureKind.Sphere
+    val hasAxis: Boolean get() = kind == FeatureKind.Circle || kind == FeatureKind.Cylinder
+    val diameter: Float get() = 2f * radius
+
+    /** True when [o] is the same feature (tapping it again deselects it). */
+    fun sameAs(o: MeasureFeature): Boolean {
+        if (kind != o.kind || part != o.part) return false
+        val eps = 1e-3f * (1f + radius + length)
+        return when (kind) {
+            FeatureKind.Point, FeatureKind.Vertex -> (point - o.point).length() < eps
+            FeatureKind.Plane -> (center - o.center).length() < eps && axis.dot(o.axis) > 0.9999f
+            else -> (center - o.center).length() < eps && kotlin.math.abs(radius - o.radius) < eps && kotlin.math.abs(length - o.length) < eps
+        }
+    }
+
+    fun toPickHit() = PickHit(part, point, normal, false)
+
+    companion object {
+        private const val HEADER = 27
+
+        fun parse(v: FloatArray): MeasureFeature? {
+            if (v.size < HEADER) return null
+            fun vec(i: Int) = Vec3(v[i], v[i + 1], v[i + 2])
+            val segs = v[26].toInt().coerceAtLeast(0)
+            val end = (HEADER + segs * 6).coerceAtMost(v.size)
+            return MeasureFeature(
+                kind = FeatureKind.entries.getOrElse(v[0].toInt()) { FeatureKind.None },
+                part = v[1].toInt(),
+                point = vec(2), normal = vec(5), center = vec(8), axis = vec(11), a = vec(14), b = vec(17),
+                radius = v[20], length = v[21], area = v[22].toDouble(), fitError = v[23],
+                inner = v[24] > 0.5f, closed = v[25] > 0.5f,
+                outline = v.copyOfRange(HEADER, end),
+            )
+        }
+    }
+}
+
 /** Result of a pick ray. */
 data class PickHit(val part: Int, val point: Vec3, val normal: Vec3, val onCap: Boolean)
 

@@ -285,9 +285,12 @@ FSV_JNI(jboolean, nativeBuildAnalysis)(JNIEnv* env, jclass, jlong h, jobject pro
         auto bvh = std::make_shared<ModelBVH>();
         bvh->build(*model, p.sub(0.f, 0.5f));
         if (!eh->engine.setBVH(bvh, model.get())) return JNI_FALSE;  // model changed meanwhile
-        std::shared_ptr<const Topology> topo(computeTopology(*model, 30.f, p.sub(0.5f, 1.f)).release());
+        std::shared_ptr<const Topology> topo(computeTopology(*model, 30.f, p.sub(0.5f, 0.8f)).release());
         if (!eh->engine.setTopology(topo, model.get())) return JNI_FALSE;
         eh->setTopology(topo);
+        std::shared_ptr<const TriangleAdjacency> adj(buildAdjacency(*model, p.sub(0.8f, 1.f)).release());
+        std::shared_ptr<const EdgeGraph> edges(buildEdgeGraph(*model, *topo).release());
+        if (!eh->engine.setFeatureData(adj, edges, model.get())) return JNI_FALSE;
         return JNI_TRUE;
     }, (jboolean)JNI_FALSE);
 }
@@ -435,6 +438,34 @@ FSV_JNI(jint, nativePick)(JNIEnv* env, jclass, jlong h, jfloat x, jfloat y, jflo
     float v[7] = {r.point.x, r.point.y, r.point.z, r.normal.x, r.normal.y, r.normal.z, r.onCap ? 1.f : 0.f};
     env->SetFloatArrayRegion(out, 0, 7, v);
     return r.part;
+}
+
+// [kind, part, point(3), normal(3), center(3), axis(3), a(3), b(3), radius, length, area, fitError,
+//  inner, closed, segmentCount, segments (6 floats each)]; null when nothing was hit.
+FSV_JNI(jfloatArray, nativeMeasurePick)(JNIEnv* env, jclass, jlong h, jfloat x, jfloat y, jfloat snapPx) {
+    if (!h) return nullptr;
+    return guarded(env, [&]() -> jfloatArray {
+        Feature f = E(h)->engine.measurePick(x, y, snapPx);
+        if (f.kind == FeatureKind::None) return nullptr;
+        const size_t nSeg = f.outline.size() / 2;
+        std::vector<float> v;
+        v.reserve(27 + nSeg * 6);
+        auto put = [&](const Vec3& p) { v.push_back(p.x); v.push_back(p.y); v.push_back(p.z); };
+        v.push_back((float)f.kind);
+        v.push_back((float)f.part);
+        put(f.point); put(f.normal); put(f.center); put(f.axis); put(f.a); put(f.b);
+        v.push_back(f.radius);
+        v.push_back(f.length);
+        v.push_back((float)f.area);
+        v.push_back(f.fitError);
+        v.push_back(f.inner ? 1.f : 0.f);
+        v.push_back(f.closed ? 1.f : 0.f);
+        v.push_back((float)nSeg);
+        for (const Vec3& p : f.outline) put(p);
+        jfloatArray arr = env->NewFloatArray((jsize)v.size());
+        env->SetFloatArrayRegion(arr, 0, (jsize)v.size(), v.data());
+        return arr;
+    }, (jfloatArray) nullptr);
 }
 
 // ---------------------------------------------------------------- part state

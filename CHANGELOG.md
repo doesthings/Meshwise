@@ -4,6 +4,30 @@ All notable changes to Meshwise are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [semantic versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-13
+
+Measuring rebuilt around features instead of loose points.
+
+### Added
+- **Smart measure** (the new default mode). A tap is matched to what's under your finger: a
+  corner, a straight edge, a round edge or hole rim, a flat face, a cylinder (hole or shaft) or
+  a sphere. This works on plain STL meshes, not just CAD files.
+  - One feature: diameter, radius and depth of a hole or shaft; diameter and center of a round
+    edge; area and direction of a face; length of an edge; position of a corner.
+  - Two features: distance between parallel faces, angle between faces or edges, center distance
+    and the wall between two holes, concentric check, axis-to-face distance and the material left
+    to a hole, perpendicular distance to an edge, or point to point with ΔX/ΔY/ΔZ.
+  - The picked features are outlined in the 3D view, with a dimension line and value.
+- **Precision cursor**: hold and drag in the measure tool; a crosshair floats above your finger,
+  previews what it will pick, and picks it when you let go.
+- **Keep** a measurement on screen and start the next one; copy one value, one result or all of
+  them as text.
+- The distance, angle and 3-point circle modes snap to corners and edges.
+- A roadmap: `docs/ROADMAP.md`.
+
+### Changed
+- The measure panel is more compact, so more of the model stays in view.
+
 ## [1.1.0] - 2026-10-13
 
 A redesign of the whole interface, plus a lot more ways to make the app your own.

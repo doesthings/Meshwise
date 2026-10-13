@@ -12,6 +12,7 @@
 #include "analysis.h"
 #include "bvh.h"
 #include "camera.h"
+#include "feature_finder.h"
 #include "engine.h"
 #include "fsm_format.h"
 #include "exporters.h"
@@ -89,6 +90,60 @@ std::unique_ptr<Model> load(const std::vector<uint8_t>& bytes, const std::string
 }
 
 std::vector<uint8_t> bytesOf(const std::string& s) { return std::vector<uint8_t>(s.begin(), s.end()); }
+
+// A washer: outer cylinder, a through hole, flat top and bottom rings (outward winding).
+std::vector<float> washerTris(float ro, float ri, float h, int seg) {
+    std::vector<float> out;
+    auto P = [&](float r, int i, float z) {
+        float a = 2.f * kPi * (float)(i % seg) / (float)seg;
+        return Vec3(r * std::cos(a), r * std::sin(a), z);
+    };
+    auto tri = [&](Vec3 a, Vec3 b, Vec3 c) { out.insert(out.end(), {a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z}); };
+    for (int i = 0; i < seg; ++i) {
+        tri(P(ro, i, 0), P(ro, i + 1, 0), P(ro, i + 1, h));  // outer wall, facing out
+        tri(P(ro, i, 0), P(ro, i + 1, h), P(ro, i, h));
+        tri(P(ri, i, 0), P(ri, i + 1, h), P(ri, i + 1, 0));  // hole wall, facing the axis
+        tri(P(ri, i, 0), P(ri, i, h), P(ri, i + 1, h));
+        tri(P(ri, i, h), P(ro, i, h), P(ro, i + 1, h));      // top ring, facing up
+        tri(P(ri, i, h), P(ro, i + 1, h), P(ri, i + 1, h));
+        tri(P(ri, i, 0), P(ro, i + 1, 0), P(ro, i, 0));      // bottom ring, facing down
+        tri(P(ri, i, 0), P(ri, i + 1, 0), P(ro, i + 1, 0));
+    }
+    return out;
+}
+
+struct Measured {
+    std::unique_ptr<Model> model;
+    std::unique_ptr<Topology> topo;
+    std::unique_ptr<TriangleAdjacency> adj;
+    std::unique_ptr<EdgeGraph> edges;
+
+    explicit Measured(std::unique_ptr<Model> m) : model(std::move(m)) {
+        topo = computeTopology(*model, 30.f, Progress());
+        adj = buildAdjacency(*model, Progress());
+        edges = buildEdgeGraph(*model, *topo);
+    }
+
+    // Taps the triangle whose centroid is closest to `near`, at that centroid (or at `at`).
+    Feature tap(const Vec3& near, float snap, const Vec3* at = nullptr) const {
+        const Model& m = *model;
+        uint32_t best = 0;
+        float bd = std::numeric_limits<float>::max();
+        for (uint32_t f = 0; f < m.triangleCount(); ++f) {
+            Vec3 c = (m.vertex(m.indices[3 * f]) + m.vertex(m.indices[3 * f + 1]) + m.vertex(m.indices[3 * f + 2])) / 3.f;
+            float d = length(c - near);
+            if (d < bd) { bd = d; best = f; }
+        }
+        Vec3 a = m.vertex(m.indices[3 * best]), b = m.vertex(m.indices[3 * best + 1]), c = m.vertex(m.indices[3 * best + 2]);
+        FeatureQuery q;
+        q.part = 0;
+        q.triangle = best;
+        q.point = at ? *at : (a + b + c) / 3.f;
+        q.normal = normalize(cross(b - a, c - a));
+        q.snapRadius = snap;
+        return findFeature(m, adj.get(), edges.get(), q);
+    }
+};
 
 void test(const char* name, const std::function<void()>& fn) {
     int before = gFailures;
@@ -363,6 +418,80 @@ int main() {
         CHECK_NEAR(c.z, 3.0, 1e-4);
         CHECK_NEAR(std::fabs(n.z), 1.0, 1e-5);
         CHECK(!circleFrom3(Vec3(0, 0, 0), Vec3(1, 1, 1), Vec3(2, 2, 2), c, n, r));
+    });
+
+    test("measure: holes, shafts and faces of a washer", [] {
+        Measured w(load(binaryStl(washerTris(10.f, 4.f, 3.f, 64)), "stl"));
+        Feature outer = w.tap(Vec3(10, 0, 1.5f), 0.2f);
+        CHECK(outer.kind == FeatureKind::Cylinder);
+        CHECK_NEAR(outer.radius, 10.0, 1e-3);
+        CHECK(!outer.inner);
+        CHECK_NEAR(outer.length, 3.0, 1e-3);
+        CHECK_NEAR(std::fabs(outer.axis.z), 1.0, 1e-4);
+        CHECK(!outer.outline.empty());
+
+        Feature hole = w.tap(Vec3(-4, 0, 1.5f), 0.2f);
+        CHECK(hole.kind == FeatureKind::Cylinder);
+        CHECK_NEAR(hole.radius, 4.0, 1e-3);
+        CHECK(hole.inner);
+        CHECK_NEAR(hole.center.x, 0.0, 1e-3);
+        CHECK_NEAR(hole.center.y, 0.0, 1e-3);
+
+        Feature top = w.tap(Vec3(7, 0, 3), 0.2f);
+        CHECK(top.kind == FeatureKind::Plane);
+        CHECK_NEAR(top.axis.z, 1.0, 1e-4);
+        double ring = 0.5 * 64 * std::sin(2 * kPi / 64) * (100.0 - 16.0);  // polygon areas
+        CHECK_NEAR(top.area, ring, 1e-2);
+
+        // Near the top rim of the outer wall: the round edge wins.
+        Vec3 nearRim(10.f * std::cos(0.05f), 10.f * std::sin(0.05f), 2.9f);
+        Feature rim = w.tap(nearRim, 0.3f, &nearRim);
+        CHECK(rim.kind == FeatureKind::Circle);
+        CHECK_NEAR(rim.radius, 10.0, 1e-3);
+        CHECK(rim.closed);
+        CHECK_NEAR(rim.center.z, 3.0, 1e-3);
+    });
+
+    test("measure: corners, edges and faces of a box", [] {
+        Measured b(load(binaryStl(boxTris({0, 0, 0}, {20, 10, 5})), "stl"));
+        Vec3 nearCorner(19.8f, 0.1f, 5.f);
+        Feature corner = b.tap(Vec3(15, 3, 5), 0.5f, &nearCorner);
+        CHECK(corner.kind == FeatureKind::Vertex);
+        CHECK_NEAR(length(corner.point - Vec3(20, 0, 5)), 0.0, 1e-4);
+
+        Vec3 nearEdge(10.f, 0.1f, 5.f);
+        Feature edge = b.tap(Vec3(10, 3, 5), 0.5f, &nearEdge);
+        CHECK(edge.kind == FeatureKind::Edge);
+        CHECK_NEAR(edge.length, 20.0, 1e-3);
+        CHECK_NEAR(std::fabs(edge.axis.x), 1.0, 1e-4);
+
+        Vec3 mid(10.f, 5.f, 5.f);
+        Feature face = b.tap(mid, 0.5f, &mid);
+        CHECK(face.kind == FeatureKind::Plane);
+        CHECK_NEAR(face.area, 200.0, 1e-3);
+        CHECK_NEAR(face.center.z, 5.0, 1e-4);
+        CHECK(face.outline.size() == 8);  // the 4 rim edges of the face
+    });
+
+    test("measure: a sphere is recognised", [] {
+        std::vector<float> tris;
+        const int nu = 48, nv = 24;
+        const float r = 6.f;
+        auto S = [&](int i, int j) {
+            float th = kPi * (float)j / (float)nv, ph = 2.f * kPi * (float)(i % nu) / (float)nu;
+            return Vec3(r * std::sin(th) * std::cos(ph), r * std::sin(th) * std::sin(ph), r * std::cos(th));
+        };
+        for (int j = 0; j < nv; ++j)
+            for (int i = 0; i < nu; ++i) {
+                Vec3 a = S(i, j), b2 = S(i, j + 1), c = S(i + 1, j + 1), d = S(i + 1, j);
+                if (j > 0) tris.insert(tris.end(), {a.x, a.y, a.z, b2.x, b2.y, b2.z, d.x, d.y, d.z});
+                if (j < nv - 1) tris.insert(tris.end(), {d.x, d.y, d.z, b2.x, b2.y, b2.z, c.x, c.y, c.z});
+            }
+        Measured s(load(binaryStl(tris), "stl", 180.f));
+        Feature f = s.tap(Vec3(0, 6, 0), 0.1f);
+        CHECK(f.kind == FeatureKind::Sphere);
+        CHECK_NEAR(f.radius, 6.0, 1e-3);
+        CHECK(!f.inner);
     });
 
     test("camera: fit, project centre, zoom anchor", [] {
