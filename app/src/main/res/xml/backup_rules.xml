@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="sharedpref" path="." />
+    <include domain="file" path="library/" />
+    <exclude domain="file" path="recent/" />
+    <exclude domain="file" path="thumbs/" />
+</full-backup-content>

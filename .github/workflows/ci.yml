@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  native:
+    name: Native core tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: sudo apt-get update -q && sudo apt-get install -y -q cmake ninja-build zlib1g-dev libegl-dev libgles-dev libegl-mesa0 libgl1-mesa-dri
+      - name: Build
+        run: cmake -S native -B native/build-host -G Ninja -DCMAKE_BUILD_TYPE=Release && ninja -C native/build-host
+      - name: Unit tests
+        run: native/build-host/fsv_tests
+      - name: Render smoke test
+        run: |
+          native/build-host/fsv_render --in app/src/main/assets/samples/spur_gear.stl --out gear.png --size 640x640
+          native/build-host/fsv_render --in app/src/test/resources/bearing_assembly.fsm --out section.png --size 640x640 --edges --section y:0.5:flip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: host-native
+          path: |
+            native/build-host/libmeshwise.so
+            gear.png
+            section.png
+
+  occt:
+    uses: ./.github/workflows/occt.yml
+
+  android:
+    name: Android build + JVM tests
+    needs: [native, occt]
+    runs-on: ubuntu-latest
+    # Newer pushes supersede this job. (The OCCT builds are never cancelled: they are long
+    # and their cache benefits every later run.)
+    concurrency:
+      group: android-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore OCCT
+        uses: ./.github/actions/restore-occt
+      - name: Install NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.31.6" > /dev/null
+      - uses: actions/download-artifact@v4
+        with:
+          name: host-native
+          path: host-native
+      - name: JVM tests (Robolectric, real native engine)
+        run: |
+          sudo apt-get install -y -q libegl1 libgles2 > /dev/null
+          ./gradlew :app:testDebugUnitTest --tests '*ViewerFlowTest*' -Pfsv.hostLibDir="$PWD/host-native/native/build-host"
+      - name: Assemble debug APKs
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          path: app/build/outputs/apk/debug/*.apk

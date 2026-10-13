@@ -1,0 +1,31 @@
+# Gradle / Android Studio
+.gradle/
+build/
+!scripts/build-*.sh
+local.properties
+.idea/
+*.iml
+.cxx/
+.externalNativeBuild/
+captures/
+*.apk
+*.aab
+*.ap_
+*.keystore
+*.jks
+*.jks.b64
+keystore.properties
+
+# Native third-party builds (produced by scripts/build-occt-android.sh)
+third_party/occt/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+native/build-host/

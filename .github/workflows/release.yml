@@ -1,0 +1,102 @@
+# Builds signed release APKs and publishes them on GitHub Releases.
+# Trigger: push a tag like v1.2.3, or run the workflow manually on a branch with a tag name
+# (the tag is then created at that branch's head when the release is published).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v1.0.0 (created at the selected branch's head if missing)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  occt:
+    uses: ./.github/workflows/occt.yml
+
+  release:
+    name: Build and publish
+    needs: occt
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore OCCT
+        uses: ./.github/actions/restore-occt
+      - name: Install NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.31.6" > /dev/null
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            {
+              echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks"
+              echo "SIGNING_STORE_PASSWORD=$STORE_PASSWORD"
+              echo "SIGNING_KEY_ALIAS=$KEY_ALIAS"
+              echo "SIGNING_KEY_PASSWORD=$KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+            echo "Signing with the repository release key."
+          else
+            echo "::warning::No signing secrets configured; APKs are signed with a temporary debug key (see docs/RELEASING.md)."
+            echo "TEMP_KEY=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build release APKs
+        run: |
+          VERSION="${TAG#v}"
+          ./gradlew assembleRelease -Pfsv.versionName="$VERSION"
+          mkdir -p dist
+          for f in app/build/outputs/apk/release/*.apk; do
+            abi=$(basename "$f" .apk | sed -e 's/^app-//' -e 's/-release$//')
+            cp "$f" "dist/Meshwise-$VERSION-$abi.apk"
+          done
+          (cd dist && sha256sum *.apk > SHA256SUMS.txt)
+          ls -la dist
+
+      - name: Release notes
+        run: |
+          VERSION="${TAG#v}"
+          if [ -f "docs/release-notes/$TAG.md" ]; then cp "docs/release-notes/$TAG.md" notes.md; else echo "Meshwise $VERSION" > notes.md; fi
+          cat >> notes.md <<'NOTES'
+
+          ### Which APK do I need?
+          | File | Devices |
+          |---|---|
+          | `…-arm64-v8a.apk` | Almost every phone and tablet from the last ~8 years (**pick this one if unsure**) |
+          | `…-armeabi-v7a.apk` | Older 32-bit ARM devices |
+          | `…-x86_64.apk` | Chromebooks and emulators |
+          | `…-universal.apk` | Everything (largest download) |
+          NOTES
+          if [ "${TEMP_KEY:-0}" = 1 ]; then
+            printf '\n> **Note:** this build is signed with a temporary key. If Android refuses to update an older install, uninstall the previous version first.\n' >> notes.md
+          fi
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Meshwise ${{ env.TAG }}
+          body_path: notes.md
+          files: |
+            dist/*.apk
+            dist/SHA256SUMS.txt

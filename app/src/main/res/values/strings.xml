@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Meshwise</string>
+
+    <!-- Home -->
+    <string name="recent_files">Recent files</string>
+    <string name="clear_recents">Clear recent files</string>
+    <string name="clear_recents_message">Remove all entries from the recent files list? Your files are not deleted.</string>
+    <string name="library">Library</string>
+    <string name="library_subtitle">Models saved inside the app</string>
+    <string name="open_model">Open 3D Model</string>
+    <string name="open_model_formats">STL · OBJ · 3MF · PLY · STEP · IGES · BREP · ZIP</string>
+    <string name="no_recents_title">Nothing opened yet</string>
+    <string name="no_recents_body">Open a model from your phone, or try one of the samples below.</string>
+    <string name="samples">Samples</string>
+    <string name="continue_viewing">Continue viewing</string>
+    <string name="remove">Remove</string>
+    <string name="settings">Settings</string>
+
+    <!-- Loading -->
+    <string name="loading_reading">Reading file…</string>
+    <string name="loading_processing">Processing mesh…</string>
+    <string name="loading_cad">Converting CAD model…</string>
+    <string name="loading_unpacking">Unpacking archive…</string>
+    <string name="cancel">Cancel</string>
+    <string name="open_failed">Could not open %1$s</string>
+    <string name="cad_crashed">The CAD converter stopped unexpectedly while reading this file.</string>
+    <string name="cad_unavailable">STEP/IGES import is not available on this device architecture.</string>
+
+    <!-- Viewer chrome -->
+    <string name="home_view">Fit view</string>
+    <string name="projection">Perspective / orthographic</string>
+    <string name="turntable">Turntable</string>
+    <string name="tap_for_dimensions">Tap for dimensions</string>
+    <string name="hide_dimensions">Tap to hide dimensions</string>
+    <string name="model_info">Model info</string>
+    <string name="tool_lighting">Lighting &amp; view</string>
+    <string name="tool_material">Material</string>
+    <string name="tool_section">Section</string>
+    <string name="tool_explode">Explode</string>
+    <string name="tool_parts">Parts</string>
+    <string name="tool_files">Files</string>
+    <string name="tool_save">Save &amp; export</string>
+    <string name="tool_color">Color</string>
+    <string name="tool_weight">Weight</string>
+    <string name="tool_measure">Measure</string>
+    <string name="tool_analyze">Analyze</string>
+    <string name="close">Close</string>
+    <string name="undo">Undo</string>
+    <string name="reset">Reset</string>
+
+    <!-- Section -->
+    <string name="section_analysis">Section analysis</string>
+    <string name="section_view">View</string>
+    <string name="section_side">Side</string>
+    <string name="section_cut">Cut:</string>
+    <string name="section_hatch">Hatching</string>
+    <string name="section_plane">Show plane</string>
+
+    <!-- Measure -->
+    <string name="measure_distance">Distance</string>
+    <string name="measure_radius">Circle</string>
+    <string name="measure_angle">Angle</string>
+    <string name="measure_point">Point</string>
+    <string name="measure_hint_distance">Tap two points on the model</string>
+    <string name="measure_hint_radius">Tap three points on a round edge or hole</string>
+    <string name="measure_hint_angle">Tap three points: start, vertex, end</string>
+    <string name="measure_hint_point">Tap a point to read its coordinates</string>
+    <string name="measure_done">Measured (tap for new)</string>
+    <string name="measure_points_left">%1$d more point(s)</string>
+    <string name="radius">Radius (R)</string>
+    <string name="diameter">Diameter (D)</string>
+    <string name="center_xyz">Center (XYZ)</string>
+    <string name="distance">Distance</string>
+    <string name="angle">Angle</string>
+    <string name="position">Position</string>
+    <string name="normal">Normal</string>
+    <string name="copy">Copy</string>
+    <string name="copied">Copied to clipboard</string>
+    <string name="collinear_points">These points are in a line — pick points around the circle</string>
+
+    <!-- Weight -->
+    <string name="weight_title">Weight estimate</string>
+    <string name="weight_material">Material</string>
+    <string name="weight_infill">Infill</string>
+    <string name="weight_walls">Walls</string>
+    <string name="weight_price">Price per kg</string>
+    <string name="volume">Volume</string>
+    <string name="surface_area">Surface area</string>
+    <string name="weight">Weight</string>
+    <string name="filament_length">Filament (1.75 mm)</string>
+    <string name="cost">Cost</string>
+    <string name="scope_all">All</string>
+    <string name="scope_visible">Visible</string>
+    <string name="scope_selected">Selected</string>
+    <string name="not_watertight_warning">The mesh is not closed; volume and weight are approximate.</string>
+
+    <!-- Color & material -->
+    <string name="color_title">Color</string>
+    <string name="paint_hint_multi">Tap a part to paint it</string>
+    <string name="paint_hint_single">Pick a color for the model</string>
+    <string name="apply_to_all">Apply to all</string>
+    <string name="original_colors">Original</string>
+    <string name="random_colors">By part</string>
+    <string name="custom_color">Custom</string>
+    <string name="material_title">Material</string>
+    <string name="material_hint">Applies to the selected part, or to everything when nothing is selected</string>
+
+    <!-- Lighting -->
+    <string name="lighting_title">Lighting &amp; view</string>
+    <string name="lighting">Lighting</string>
+    <string name="background">Background</string>
+    <string name="exposure">Exposure</string>
+    <string name="shadows">Shadows</string>
+    <string name="grid">Grid</string>
+    <string name="edges">Edges</string>
+    <string name="wireframe">Wireframe</string>
+    <string name="axes">Axes</string>
+    <string name="orthographic">Orthographic</string>
+    <string name="smooth_shading">Smooth shading</string>
+
+    <!-- Explode -->
+    <string name="explode_title">Explode</string>
+    <string name="manual_mode">Manual mode</string>
+    <string name="manual_hint">Tap a part, then drag an arrow to move it</string>
+    <string name="hide_part">Hide part</string>
+    <string name="explode_single_part">This model has a single part</string>
+
+    <!-- Parts -->
+    <string name="parts_title">Parts (%1$d)</string>
+    <string name="search_parts">Search parts</string>
+    <string name="show_all">Show all</string>
+    <string name="isolate">Isolate</string>
+    <string name="ghost_others">X-ray others</string>
+    <string name="focus">Focus</string>
+    <string name="triangles_short">%1$s △</string>
+
+    <!-- Analyze -->
+    <string name="analyze_title">Analysis</string>
+    <string name="thickness">Thickness</string>
+    <string name="overhang">Overhang</string>
+    <string name="mesh_check">Mesh check</string>
+    <string name="thinnest_wall">Thinnest wall</string>
+    <string name="gradient">Gradient</string>
+    <string name="threshold">Threshold</string>
+    <string name="min_wall">Minimum wall</string>
+    <string name="analyzing">Analyzing…</string>
+    <string name="overhang_angle">Overhang angle</string>
+    <string name="overhang_area">Overhang area</string>
+    <string name="watertight">Watertight</string>
+    <string name="not_watertight">Not watertight</string>
+    <string name="open_edges">Open edges</string>
+    <string name="non_manifold_edges">Non-manifold edges</string>
+    <string name="shells">Shells</string>
+    <string name="flipped_edges">Inconsistent normals</string>
+    <string name="degenerate_faces">Degenerate faces</string>
+    <string name="highlight_problems">Highlight problems</string>
+    <string name="snapshot">Snapshot</string>
+
+    <!-- Save & export -->
+    <string name="project">Project</string>
+    <string name="save_project">Save project</string>
+    <string name="export">Export</string>
+    <string name="export_stl">geometry</string>
+    <string name="export_obj">+ part names</string>
+    <string name="export_3mf">+ names and colors</string>
+    <string name="export_png">frame snapshot</string>
+    <string name="save_to_library">Save to library</string>
+    <string name="share">Share</string>
+    <string name="saved">Saved</string>
+    <string name="export_failed">Export failed</string>
+    <string name="visible_parts_only">Visible parts only</string>
+    <string name="apply_explode">Keep exploded layout</string>
+
+    <!-- Model info -->
+    <string name="format">Format</string>
+    <string name="file_size">File size</string>
+    <string name="triangles">Triangles</string>
+    <string name="vertices">Vertices</string>
+    <string name="parts">Parts</string>
+    <string name="dimensions">Dimensions</string>
+    <string name="bounds_min">Min</string>
+    <string name="bounds_max">Max</string>
+    <string name="load_time">Load time</string>
+    <string name="warnings">Warnings</string>
+
+    <!-- Settings -->
+    <string name="appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="dynamic_color">Dynamic color</string>
+    <string name="dynamic_color_summary">Use colors from your wallpaper (Android 12+)</string>
+    <string name="viewer">Viewer</string>
+    <string name="crease_angle">Crease angle</string>
+    <string name="crease_angle_summary">Edges sharper than this stay crisp</string>
+    <string name="rotation_speed">Rotation speed</string>
+    <string name="units">Units</string>
+    <string name="unit_mm">Millimeters</string>
+    <string name="unit_cm">Centimeters</string>
+    <string name="unit_in">Inches</string>
+    <string name="cad_import">CAD import</string>
+    <string name="cad_quality">Tessellation quality</string>
+    <string name="quality_coarse">Coarse (fastest)</string>
+    <string name="quality_normal">Normal</string>
+    <string name="quality_fine">Fine</string>
+    <string name="storage">Storage</string>
+    <string name="clear_cache">Clear cache</string>
+    <string name="cache_cleared">Cache cleared</string>
+    <string name="keep_screen_on">Keep screen on while viewing</string>
+    <string name="about">About</string>
+    <string name="version">Version %1$s</string>
+    <string name="source_code">Source code</string>
+    <string name="licenses">Open source licenses</string>
+    <string name="edges_auto">Auto</string>
+    <string name="edges_on">Always</string>
+    <string name="edges_off">Never</string>
+    <string name="show_edges">Feature edges</string>
+
+    <!-- Library -->
+    <string name="library_empty">Your library is empty. Save models here from the Save menu to keep them on this device.</string>
+    <string name="delete">Delete</string>
+    <string name="rename">Rename</string>
+    <string name="import_to_library">Import file</string>
+    <string name="delete_confirm">Delete %1$s from the library?</string>
+    <string name="ok">OK</string>
+
+    <!-- Support -->
+    <string name="support">Support</string>
+    <string name="support_title">Enjoying Meshwise?</string>
+    <string name="support_body">Meshwise is free and open source, with no ads and no tracking. If it saves you time, consider buying me a coffee. It keeps development going.</string>
+    <string name="buy_coffee">Buy me a coffee</string>
+    <string name="star_github">Star on GitHub</string>
+    <string name="support_cd">Support Meshwise on Ko-fi</string>
+</resources>

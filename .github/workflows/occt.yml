@@ -1,0 +1,38 @@
+# Builds the Open CASCADE static libraries for one or more Android ABIs and caches them.
+# Used by the CI and release workflows; can also be run by hand.
+name: OCCT (Android)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  occt:
+    name: OCCT ${{ matrix.abi }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache OCCT build
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: third_party/occt/${{ matrix.abi }}
+          key: occt-V7_8_1-${{ matrix.abi }}-${{ hashFiles('scripts/build-occt-android.sh') }}
+
+      - name: Install NDK and build tools
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q ninja-build
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" > /dev/null
+
+      - name: Build OCCT
+        if: steps.cache.outputs.cache-hit != 'true'
+        # Pin the NDK the app uses (the runner's ANDROID_NDK_HOME points at another version).
+        run: ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358" scripts/build-occt-android.sh ${{ matrix.abi }}

@@ -1,0 +1,29 @@
+name: Bug report
+description: Something crashes, looks wrong or does not open
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: Pixel 8, Android 15
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Settings → About
+      placeholder: "1.0.0"
+  - type: textarea
+    id: file
+    attributes:
+      label: Model file
+      description: If a specific file is affected, attach it (zip it first) or link to it if you can share it.
