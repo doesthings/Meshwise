@@ -91,7 +91,19 @@ jobs:
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            # Tolerate how the secret was pasted: Windows line endings, wrapped lines, spaces,
+            # and "-----BEGIN/END ...-----" lines (certutil). The certificate check below
+            # still decides whether anything is published.
+            CLEAN=$(printf '%s\n' "$KEYSTORE_BASE64" | tr -d '\r' | grep -v -- '-----' | tr -d ' \t\n')
+            if ! printf '%s' "$CLEAN" | base64 -d > "$RUNNER_TEMP/release.jks" 2>/dev/null; then
+              BAD=$(printf '%s' "$CLEAN" | tr -d 'A-Za-z0-9+/=' | wc -c)
+              echo "::error::SIGNING_KEYSTORE_BASE64 is not valid base64 (${#CLEAN} characters after cleanup, $BAD outside the base64 alphabet). Re-create it with 'base64 -w0 release.jks' and paste it again."
+              exit 1
+            fi
+            if ! keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1; then
+              echo "::error::The keystore decoded ($(wc -c < "$RUNNER_TEMP/release.jks") bytes) but could not be opened with SIGNING_STORE_PASSWORD and SIGNING_KEY_ALIAS. Check those two secrets (keytool -list -keystore release.jks shows the alias)."
+              exit 1
+            fi
             {
               echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks"
               echo "SIGNING_STORE_PASSWORD=$STORE_PASSWORD"
