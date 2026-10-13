@@ -1,6 +1,8 @@
 # Builds signed release APKs and publishes them on GitHub Releases.
-# Trigger: push a tag like v1.2.3, or run the workflow manually on a branch with a tag name
-# (the tag is then created at that branch's head when the release is published).
+# Triggers:
+#  - change the VERSION file on main: releases v<VERSION> if it is not released yet
+#  - push a tag like v1.2.3
+#  - run it manually with a tag name (the tag is created at the branch head on publish)
 #
 # A release is only published when every APK is signed with the Meshwise release key
 # (checked against EXPECTED_CERT_SHA256 below). Without the signing secrets the run fails,
@@ -10,6 +12,8 @@ name: Release
 on:
   push:
     tags: ["v*"]
+    branches: [main]
+    paths: [VERSION]
   workflow_dispatch:
     inputs:
       tag:
@@ -24,15 +28,44 @@ permissions:
   contents: write
 
 jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then TAG="$INPUT_TAG"
+          elif [ "$REF_TYPE" = "tag" ]; then TAG="$REF_NAME"
+          else TAG="v$(tr -d '[:space:]' < VERSION)"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = "push" ] && [ "$REF_TYPE" = "branch" ] && git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "$TAG is already released; nothing to do."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Releasing $TAG"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   occt:
+    needs: version
+    if: needs.version.outputs.release == 'true'
     uses: ./.github/workflows/occt.yml
 
   release:
     name: Build and publish
-    needs: occt
+    needs: [version, occt]
     runs-on: ubuntu-latest
     env:
-      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      TAG: ${{ needs.version.outputs.tag }}
       TEST_BUILD: ${{ github.event.inputs.test_build == 'true' }}
       # Public fingerprint of the Meshwise release certificate (CN=Meshwise, O=doesthings).
       EXPECTED_CERT_SHA256: cbefeb0e767375be72d29325f97ec602b4b5d9b8e4eecb9aef3958818bbc5c38

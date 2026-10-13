@@ -1,24 +1,21 @@
 # Releasing
 
 Releases are built by [`.github/workflows/release.yml`](../.github/workflows/release.yml).
-Pushing a tag that starts with `v` builds Open CASCADE for every ABI (cached after the first
-run), assembles the release APKs and publishes them, with SHA-256 checksums, on the
-repository's **Releases** page.
+It builds Open CASCADE for every ABI (cached after the first run), assembles the release APKs,
+checks that they are signed with the Meshwise key and publishes them, with SHA-256 checksums,
+on the repository's **Releases** page.
 
-```bash
-# 1. bump the changelog and add docs/release-notes/vX.Y.Z.md (used as the release body)
-# 2. tag and push
-git tag -a v1.1.0 -m "Meshwise 1.1.0"
-git push origin v1.1.0
-```
+To publish a new version:
 
-Alternatively run the **Release** workflow from the Actions tab ("Run workflow"), pick the
-branch and enter the tag name; the tag is created at that branch's head when the release
-is published.
+1. Update `CHANGELOG.md` and add `docs/release-notes/vX.Y.Z.md` (it becomes the release text).
+2. Change the version in the `VERSION` file and push to `main`.
 
-The version name comes from the tag (`v1.1.0` → `1.1.0`) and the version code is derived from
-it (`major*10000 + minor*100 + patch`, times ten plus an ABI digit for the split APKs), so
-every release installs over the previous one.
+The **Release** workflow notices the new version, builds and verifies the APKs and publishes
+release `vX.Y.Z` (creating the tag). Pushing a `vX.Y.Z` tag or running the workflow by hand
+from the Actions tab works too.
+
+The version code is derived from the version (`major*10000 + minor*100 + patch`, times ten
+plus an ABI digit for the split APKs), so every release installs over the previous one.
 
 ## Signing key (one-time setup)
 

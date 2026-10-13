@@ -14,8 +14,9 @@ val signingProps = Properties().apply {
 fun signingValue(key: String, env: String): String? = signingProps.getProperty(key) ?: System.getenv(env)
 
 val abiList = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-// Release builds pass -Pfsv.versionName=X.Y.Z (from the git tag); the code is derived from it.
-val appVersionName = (findProperty("fsv.versionName") as String?) ?: "1.0.0"
+// The version lives in the top-level VERSION file (release builds may override it with
+// -Pfsv.versionName=X.Y.Z); the version code is derived from it.
+val appVersionName = (findProperty("fsv.versionName") as String?) ?: rootProject.file("VERSION").readText().trim()
 val appVersionCode = appVersionName.split('.', '-').take(3).map { it.toIntOrNull() ?: 0 }
     .let { v -> v.getOrElse(0) { 0 } * 10000 + v.getOrElse(1) { 0 } * 100 + v.getOrElse(2) { 0 } }
 
