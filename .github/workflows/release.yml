@@ -107,8 +107,14 @@ jobs:
             STORE_PASSWORD=$(tidy "$STORE_PASSWORD"); KEY_PASSWORD=$(tidy "$KEY_PASSWORD"); KEY_ALIAS=$(tidy "$KEY_ALIAS")
             KS="$RUNNER_TEMP/release.jks"
             if ! keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" > /dev/null 2>&1; then
-              echo "::error::The keystore decoded ($(wc -c < "$KS") bytes) but SIGNING_STORE_PASSWORD does not open it. Check that secret."
-              exit 1
+              if [ -n "$KEY_PASSWORD" ] && keytool -list -keystore "$KS" -storepass "$KEY_PASSWORD" > /dev/null 2>&1; then
+                echo "::warning::SIGNING_KEY_PASSWORD opens the keystore but SIGNING_STORE_PASSWORD does not; the two look swapped. Using it for both."
+                STORE_PASSWORD="$KEY_PASSWORD"
+              else
+                WHY=$(keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" 2>&1 | grep -i 'keytool error' | head -1)
+                echo "::error::The keystore decoded ($(wc -c < "$KS") bytes, $(file -b "$KS" | cut -c1-40)) but SIGNING_STORE_PASSWORD does not open it. keytool says: $WHY"
+                exit 1
+              fi
             fi
             ALIASES=$(keytool -list -v -keystore "$KS" -storepass "$STORE_PASSWORD" 2>/dev/null | sed -n 's/^Alias name: //p')
             if ! printf '%s\n' "$ALIASES" | grep -qixF -- "$KEY_ALIAS"; then
