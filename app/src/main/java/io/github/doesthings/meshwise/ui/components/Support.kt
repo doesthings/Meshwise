@@ -38,7 +38,11 @@ import androidx.compose.ui.unit.dp
 import io.github.doesthings.meshwise.R
 
 const val REPO_URL = "https://github.com/doesthings/Meshwise"
-const val KOFI_URL = "https://ko-fi.com/freefcc"
+/**
+ * Donation link. It points at a redirect page (github.com/doesthings/donate) so the destination,
+ * currently Ko-fi, can change without an app update.
+ */
+const val KOFI_URL = "https://doesthings.github.io/donate/"
 
 /** Ko-fi's brand coral. */
 val KofiColor = Color(0xFFFF5E5B)

@@ -7,7 +7,7 @@
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=for-the-badge&logo=android&logoColor=white">
   <img alt="OpenGL ES 3" src="https://img.shields.io/badge/OpenGL%20ES-3.0-5586a4?style=for-the-badge&logo=opengl&logoColor=white">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge"></a>
-  <a href="https://ko-fi.com/freefcc"><img alt="Support on Ko-fi" src="https://img.shields.io/badge/Ko--fi-Support%20this%20project-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white"></a>
+  <a href="https://doesthings.github.io/donate/"><img alt="Support on Ko-fi" src="https://img.shields.io/badge/Ko--fi-Support%20this%20project-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white"></a>
 </p>
 
 **Meshwise** is a fast 3D model viewer for Android. Open 3D printing and CAD files on your
@@ -204,7 +204,7 @@ you can star the repo or buy me a coffee. Both help keep development going.
 
 <p align="center">
   <a href="https://github.com/doesthings/Meshwise"><img alt="Star on GitHub" src="https://img.shields.io/badge/Star%20on%20GitHub-%E2%AD%90-yellow?style=for-the-badge&logo=github"></a>
-  <a href="https://ko-fi.com/freefcc"><img alt="Buy me a coffee on Ko-fi" src="https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white"></a>
+  <a href="https://doesthings.github.io/donate/"><img alt="Buy me a coffee on Ko-fi" src="https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white"></a>
 </p>
 
 Bug reports help just as much, especially files that don't open or look wrong:
@@ -219,7 +219,8 @@ The app's only network use is the **optional update check**. On first launch Mes
 whether it may check for updates; the answer is no until you say yes, and you can change it in
 Settings at any time. When it's on, the app asks GitHub for the latest release at most once a
 day. It sends nothing else, and nothing is downloaded until you tap **Download**. The Ko-fi
-and GitHub buttons open your browser.
+and GitHub buttons open your browser (the Ko-fi button goes through a small redirect page on
+GitHub Pages, so the donation link can change without an app update).
 
 ## License
 

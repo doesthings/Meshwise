@@ -35,7 +35,8 @@ A redesign of the whole interface, plus a lot more ways to make the app your own
   labelled sliders.
 - Fit view and the projection switch now sit under the view cube.
 - Landscape: the bottom bars are centered and the model is framed in the space above them.
-- Ko-fi support links now go to https://ko-fi.com/freefcc.
+- Support links go through https://doesthings.github.io/donate/, which forwards to Ko-fi
+  (ko-fi.com/freefcc), so the destination can change without an app update.
 
 ### Fixed
 - The first model opened after launch could be framed too large (cut off at the sides) because
