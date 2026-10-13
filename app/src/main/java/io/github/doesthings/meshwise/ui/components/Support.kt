@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import io.github.doesthings.meshwise.R
 
 const val REPO_URL = "https://github.com/doesthings/Meshwise"
-const val KOFI_URL = "https://ko-fi.com/doesthings"
+const val KOFI_URL = "https://ko-fi.com/freefcc"
 
 /** Ko-fi's brand coral. */
 val KofiColor = Color(0xFFFF5E5B)
