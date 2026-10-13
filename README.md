@@ -36,6 +36,10 @@ phone (you may need to allow installs from your browser or file manager).
 Requires Android 8.0 (API 26) or newer with OpenGL ES 3.0, which covers essentially all devices
 in use today.
 
+Every release APK is signed with the same Meshwise certificate, so updates install over each
+other. To check a download, run `apksigner verify --print-certs` on it; the SHA-256 must be
+`CB:EF:EB:0E:76:73:75:BE:72:D2:93:25:F9:7E:C6:02:B4:B5:D9:B8:E4:EE:CB:9A:EF:39:58:81:8B:BC:5C:38`.
+
 ## Screenshots
 
 <table>

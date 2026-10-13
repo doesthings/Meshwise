@@ -1,6 +1,10 @@
 # Builds signed release APKs and publishes them on GitHub Releases.
 # Trigger: push a tag like v1.2.3, or run the workflow manually on a branch with a tag name
 # (the tag is then created at that branch's head when the release is published).
+#
+# A release is only published when every APK is signed with the Meshwise release key
+# (checked against EXPECTED_CERT_SHA256 below). Without the signing secrets the run fails,
+# unless "test build" is ticked: then the APKs are only attached to the run as an artifact.
 name: Release
 
 on:
@@ -11,6 +15,10 @@ on:
       tag:
         description: "Release tag, e.g. v1.0.0 (created at the selected branch's head if missing)"
         required: true
+      test_build:
+        description: "Test build: no release, allow a temporary key, APKs as a run artifact"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,6 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      TEST_BUILD: ${{ github.event.inputs.test_build == 'true' }}
+      # Public fingerprint of the Meshwise release certificate (CN=Meshwise, O=doesthings).
+      EXPECTED_CERT_SHA256: cbefeb0e767375be72d29325f97ec602b4b5d9b8e4eecb9aef3958818bbc5c38
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -55,9 +66,11 @@ jobs:
               echo "SIGNING_KEY_PASSWORD=$KEY_PASSWORD"
             } >> "$GITHUB_ENV"
             echo "Signing with the repository release key."
+          elif [ "$TEST_BUILD" = "true" ]; then
+            echo "::warning::No signing secrets: test build signed with a temporary key."
           else
-            echo "::warning::No signing secrets configured; APKs are signed with a temporary debug key (see docs/RELEASING.md)."
-            echo "TEMP_KEY=1" >> "$GITHUB_ENV"
+            echo "::error::Signing secrets are missing. Add SIGNING_KEYSTORE_BASE64, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS and SIGNING_KEY_PASSWORD under Settings > Secrets and variables > Actions (see docs/RELEASING.md), then re-run this workflow."
+            exit 1
           fi
 
       - name: Build release APKs
@@ -72,7 +85,27 @@ jobs:
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
           ls -la dist
 
+      - name: Verify signatures
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          for f in dist/*.apk; do
+            CERT=$("$APKSIGNER" verify --print-certs "$f" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+            echo "$(basename "$f"): $CERT"
+            if [ "$CERT" != "$EXPECTED_CERT_SHA256" ] && [ "$TEST_BUILD" != "true" ]; then
+              echo "::error::$(basename "$f") is not signed with the Meshwise release key."
+              exit 1
+            fi
+          done
+
+      - name: Upload test build
+        if: env.TEST_BUILD == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshwise-test-build
+          path: dist/
+
       - name: Release notes
+        if: env.TEST_BUILD != 'true'
         run: |
           VERSION="${TAG#v}"
           if [ -f "docs/release-notes/$TAG.md" ]; then cp "docs/release-notes/$TAG.md" notes.md; else echo "Meshwise $VERSION" > notes.md; fi
@@ -85,12 +118,18 @@ jobs:
           | `…-armeabi-v7a.apk` | Older 32-bit ARM devices |
           | `…-x86_64.apk` | Chromebooks and emulators |
           | `…-universal.apk` | Everything (largest download) |
+
+          ### Verify the download
+          Every APK is signed with the Meshwise release certificate. You can check it with
+          `apksigner verify --print-certs <file>.apk`. The SHA-256 must be:
+          ```
+          CB:EF:EB:0E:76:73:75:BE:72:D2:93:25:F9:7E:C6:02:B4:B5:D9:B8:E4:EE:CB:9A:EF:39:58:81:8B:BC:5C:38
+          ```
+          File checksums are in `SHA256SUMS.txt`.
           NOTES
-          if [ "${TEMP_KEY:-0}" = 1 ]; then
-            printf '\n> **Note:** this build is signed with a temporary key. If Android refuses to update an older install, uninstall the previous version first.\n' >> notes.md
-          fi
 
       - name: Publish
+        if: env.TEST_BUILD != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}

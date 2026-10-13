@@ -22,9 +22,13 @@ every release installs over the previous one.
 
 ## Signing key (one-time setup)
 
-Without signing secrets the workflow still produces installable APKs, but signs them with a
-throwaway key, so Android will not update one release with the next (users must uninstall
-first). Set up a permanent key once:
+A release is only published when every APK is signed with the Meshwise release key: the
+workflow checks the certificate against `EXPECTED_CERT_SHA256` in `release.yml` and fails
+otherwise, including when the signing secrets are missing. For a quick unsigned check, run the
+workflow manually with **Test build** ticked; the APKs are then attached to the run as an
+artifact and nothing is published.
+
+The project's key already exists (owner's private backup). To create a key for a fork:
 
 ```bash
 keytool -genkeypair -v -keystore release.jks -alias meshwise \
@@ -42,7 +46,8 @@ Then add these repository secrets under **Settings → Secrets and variables →
 | `SIGNING_KEY_PASSWORD` | key password |
 
 Keep `release.jks` and its passwords somewhere safe and **never commit them**: losing the key
-means users cannot update, and leaking it lets anyone publish updates in your name.
+means users cannot update, and leaking it lets anyone publish updates in your name. A fork
+with its own key must also update `EXPECTED_CERT_SHA256` in `release.yml`.
 
 ## Local release builds
 
