@@ -91,13 +91,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            # Tolerate how the secret was pasted: Windows line endings, wrapped lines, spaces,
-            # and "-----BEGIN/END ...-----" lines (certutil). The certificate check below
-            # still decides whether anything is published.
-            CLEAN=$(printf '%s\n' "$KEYSTORE_BASE64" | tr -d '\r' | grep -v -- '-----' | tr -d ' \t\n')
+            # Tolerate how the secret was pasted: line endings, wrapping, spaces, invisible
+            # characters (BOM, zero-width space) and "-----BEGIN/END ...-----" lines (certutil).
+            # Opening the keystore and the certificate check below still guard the release.
+            CLEAN=$(printf '%s\n' "$KEYSTORE_BASE64" | tr -d '\r' | grep -v -- '-----' | tr -cd 'A-Za-z0-9+/=')
+            DROPPED=$(( $(printf '%s' "$KEYSTORE_BASE64" | wc -c) - ${#CLEAN} ))
+            if [ "$DROPPED" -gt 0 ]; then echo "Ignored $DROPPED stray bytes (whitespace or invisible characters) in SIGNING_KEYSTORE_BASE64."; fi
             if ! printf '%s' "$CLEAN" | base64 -d > "$RUNNER_TEMP/release.jks" 2>/dev/null; then
-              BAD=$(printf '%s' "$CLEAN" | tr -d 'A-Za-z0-9+/=' | wc -c)
-              echo "::error::SIGNING_KEYSTORE_BASE64 is not valid base64 (${#CLEAN} characters after cleanup, $BAD outside the base64 alphabet). Re-create it with 'base64 -w0 release.jks' and paste it again."
+              echo "::error::SIGNING_KEYSTORE_BASE64 is not valid base64 (${#CLEAN} base64 characters). Re-create it with 'base64 -w0 release.jks' and paste it again."
               exit 1
             fi
             if ! keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1; then
