@@ -830,10 +830,14 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                     job?.isActive != false
                 })
                 if (r != null) {
-                    _thickness.update {
-                        it.copy(computing = false, result = r, thresholdValue = if (it.result == null) defaultThreshold(r.min) else it.thresholdValue)
+                    // Publish the result and switch the shading together, so nobody sees the
+                    // result with the old shading mode.
+                    withContext(Dispatchers.Main) {
+                        _thickness.update {
+                            it.copy(computing = false, result = r, thresholdValue = if (it.result == null) defaultThreshold(r.min) else it.thresholdValue)
+                        }
+                        applyAnalyzeMode()
                     }
-                    withContext(Dispatchers.Main) { applyAnalyzeMode() }
                 } else {
                     _thickness.update { it.copy(computing = false) }
                 }

@@ -81,7 +81,7 @@ jobs:
       - name: Install NDK
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.31.6" > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.31.6" "build-tools;36.0.0" > /dev/null
 
       - name: Signing key
         env:
@@ -168,10 +168,17 @@ jobs:
 
       - name: Verify signatures
         run: |
-          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          # A pinned apksigner: the newest one on the runner printed no certificate.
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           for f in dist/*.apk; do
-            CERT=$("$APKSIGNER" verify --print-certs "$f" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-            echo "$(basename "$f"): $CERT"
+            OUT=$("$APKSIGNER" verify --print-certs "$f" 2>&1) || { echo "$OUT"; echo "::error::$(basename "$f") does not verify."; exit 1; }
+            CERT=$(printf '%s\n' "$OUT" | grep -oiE 'certificate SHA-256 digest: [0-9a-f]{64}' | head -1 | awk '{print tolower($NF)}')
+            echo "$(basename "$f"): ${CERT:-<none>}"
+            if [ -z "$CERT" ]; then
+              echo "$OUT"
+              echo "::error::Could not read the signing certificate of $(basename "$f")."
+              exit 1
+            fi
             if [ "$CERT" != "$EXPECTED_CERT_SHA256" ] && [ "$TEST_BUILD" != "true" ]; then
               echo "::error::$(basename "$f") is not signed with the Meshwise release key."
               exit 1
