@@ -71,6 +71,10 @@ import io.github.doesthings.meshwise.ui.components.RoundIconButton
 import io.github.doesthings.meshwise.ui.components.SectionLabel
 import io.github.doesthings.meshwise.ui.components.Segmented
 import io.github.doesthings.meshwise.ui.components.SwitchRow
+import io.github.doesthings.meshwise.ui.components.ToggleChip
+import io.github.doesthings.meshwise.data.BACKGROUND_CUSTOM
+import io.github.doesthings.meshwise.engine.StandardView
+import androidx.compose.material.icons.rounded.Tune
 import io.github.doesthings.meshwise.ui.components.ToolPanel
 import io.github.doesthings.meshwise.ui.theme.ValueStyle
 import io.github.doesthings.meshwise.util.Fmt
@@ -78,42 +82,120 @@ import io.github.doesthings.meshwise.viewer.Tool
 import io.github.doesthings.meshwise.viewer.ViewerViewModel
 import java.util.Locale
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LightingPanel(vm: ViewerViewModel) {
     val s by vm.settings.collectAsStateWithLifecycle()
     val o by vm.options.collectAsStateWithLifecycle()
+    val scheme = MaterialTheme.colorScheme
+    var editCustom by remember { mutableStateOf(false) }
     ToolPanel(stringResource(R.string.lighting_title), Icons.Rounded.WbSunny, onClose = { vm.selectTool(Tool.None) }) {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SectionLabel(stringResource(R.string.standard_views))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(STANDARD_VIEWS) { (view, label) ->
+                    PillButton(stringResource(label)) { vm.setStandardView(view) }
+                }
+            }
             SectionLabel(stringResource(R.string.lighting))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(Lighting.names.size) { i ->
                     PillButton(Lighting.names[i], selected = s.lighting == i) { vm.updateSettings { it.copy(lighting = i) } }
                 }
             }
+            SliderRow(stringResource(R.string.lighting_exposure), "${(s.exposure * 100).toInt()}%", s.exposure, 0.4f..2f) { v -> vm.updateSettings { it.copy(exposure = v) } }
             SectionLabel(stringResource(R.string.background))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Backgrounds.previews.forEachIndexed { i, (top, bottom) ->
-                    val sel = s.background == i
-                    Box(
-                        Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Brush.verticalGradient(listOf(Color(top), Color(bottom))))
-                            .border(if (sel) 3.dp else 1.dp, if (sel) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.3f), CircleShape)
-                            .clickable { vm.updateSettings { it.copy(background = i) } },
-                    )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(Backgrounds.previews.size) { i ->
+                    val (top, bottom) = Backgrounds.previews[i]
+                    GradientDot(Color(top), Color(bottom), s.background == i, Backgrounds.names[i]) {
+                        editCustom = false
+                        vm.updateSettings { it.copy(background = i) }
+                    }
+                }
+                item {
+                    GradientDot(Color(s.bgTop), Color(s.bgBottom), s.background == BACKGROUND_CUSTOM, stringResource(R.string.custom_background), icon = Icons.Rounded.Tune) {
+                        editCustom = s.background == BACKGROUND_CUSTOM && !editCustom || s.background != BACKGROUND_CUSTOM
+                        vm.updateSettings { it.copy(background = BACKGROUND_CUSTOM) }
+                    }
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.exposure), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(96.dp))
-                Slider(value = s.exposure, onValueChange = { v -> vm.updateSettings { it.copy(exposure = v) } }, valueRange = 0.4f..2f, modifier = Modifier.weight(1f))
+            if (editCustom && s.background == BACKGROUND_CUSTOM) {
+                Text(stringResource(R.string.gradient_top), style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
+                ColorPickerRow(s.bgTop) { c -> vm.updateSettings { it.copy(bgTop = c) } }
+                Text(stringResource(R.string.gradient_bottom), style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
+                ColorPickerRow(s.bgBottom) { c -> vm.updateSettings { it.copy(bgBottom = c) } }
             }
-            SwitchRow(stringResource(R.string.shadows), s.shadows, { v -> vm.updateSettings { it.copy(shadows = v) } })
-            SwitchRow(stringResource(R.string.grid), s.grid, { v -> vm.updateSettings { it.copy(grid = v) } })
-            SwitchRow(stringResource(R.string.axes), s.axes, { v -> vm.updateSettings { it.copy(axes = v) } })
-            SwitchRow(stringResource(R.string.edges), o.edges, { v -> vm.updateOptions { it.copy(edges = v) } })
-            SwitchRow(stringResource(R.string.wireframe), o.wireframe, { v -> vm.updateOptions { it.copy(wireframe = v) } })
-            SwitchRow(stringResource(R.string.orthographic), s.orthographic, { v -> vm.updateSettings { it.copy(orthographic = v) } })
+            if (!s.orthographic) {
+                SliderRow(stringResource(R.string.field_of_view), "${s.fov.toInt()}°", s.fov, 15f..75f) { v -> vm.updateSettings { it.copy(fov = v.toInt().toFloat()) } }
+            }
+            SectionLabel(stringResource(R.string.display))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ToggleChip(stringResource(R.string.shadows), s.shadows) { v -> vm.updateSettings { it.copy(shadows = v) } }
+                ToggleChip(stringResource(R.string.grid), s.grid) { v -> vm.updateSettings { it.copy(grid = v) } }
+                ToggleChip(stringResource(R.string.axes), s.axes) { v -> vm.updateSettings { it.copy(axes = v) } }
+                ToggleChip(stringResource(R.string.edges), o.edges) { v -> vm.updateOptions { it.copy(edges = v) } }
+                ToggleChip(stringResource(R.string.wireframe), o.wireframe) { v -> vm.updateOptions { it.copy(wireframe = v) } }
+                ToggleChip(stringResource(R.string.orthographic), s.orthographic) { v -> vm.updateSettings { it.copy(orthographic = v) } }
+            }
+        }
+    }
+}
+
+private val STANDARD_VIEWS = listOf(
+    StandardView.Iso to R.string.view_iso,
+    StandardView.Front to R.string.view_front,
+    StandardView.Top to R.string.view_top,
+    StandardView.Right to R.string.view_right,
+    StandardView.Back to R.string.view_back,
+    StandardView.Left to R.string.view_left,
+    StandardView.Bottom to R.string.view_bottom,
+)
+
+/** Label, value and a slider on one row. */
+@Composable
+fun SliderRow(label: String, value: String, current: Float, range: ClosedFloatingPointRange<Float>, steps: Int = 0, onChange: (Float) -> Unit) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text(value, style = ValueStyle.copy(fontSize = MaterialTheme.typography.bodyLarge.fontSize), color = MaterialTheme.colorScheme.primary)
+        }
+        Slider(current, onChange, valueRange = range, steps = steps, modifier = Modifier.height(36.dp))
+    }
+}
+
+@Composable
+private fun GradientDot(top: Color, bottom: Color, selected: Boolean, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(Brush.verticalGradient(listOf(top, bottom)))
+            .border(if (selected) 3.dp else 1.dp, if (selected) scheme.primary else scheme.onSurface.copy(alpha = 0.25f), CircleShape)
+            .clickable(onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (icon != null) Icon(icon, label, tint = Color.White, modifier = Modifier.size(18.dp))
+    }
+}
+
+/** Hue and lightness sliders with a preview swatch; reports ARGB colours. */
+@Composable
+fun ColorPickerRow(color: Int, onChange: (Int) -> Unit) {
+    val hsl = remember(color) { FloatArray(3).also { androidx.core.graphics.ColorUtils.colorToHSL(color, it) } }
+    var hue by remember { mutableStateOf(hsl[0]) }
+    var light by remember { mutableStateOf(hsl[2]) }
+    var sat by remember { mutableStateOf(hsl[1].coerceAtLeast(0f)) }
+    fun emit() = onChange(androidx.core.graphics.ColorUtils.HSLToColor(floatArrayOf(hue, sat, light)))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(36.dp).clip(CircleShape).background(Color(color)).border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f), CircleShape))
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.horizontalGradient((0..6).map { Color.hsl(it * 60f % 360f, 0.7f, 0.55f) })))
+            Slider(hue, { hue = it; if (sat < 0.05f) sat = 0.45f; emit() }, valueRange = 0f..359f, modifier = Modifier.height(30.dp))
+            Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Brush.horizontalGradient(listOf(Color.Black, Color.hsl(hue, sat, 0.5f), Color.White))))
+            Slider(light, { light = it; emit() }, valueRange = 0f..1f, modifier = Modifier.height(30.dp))
         }
     }
 }
@@ -222,7 +304,7 @@ fun NumberField(value: Float, onCommit: (Float) -> Unit, digits: Int = 1, modifi
         modifier = modifier
             .width(96.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(Color.Black.copy(alpha = 0.35f))
+            .background(scheme.onSurface.copy(alpha = 0.07f))
             .border(1.dp, scheme.primary.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
             .padding(horizontal = 10.dp, vertical = 8.dp)
             .onFocusChanged {

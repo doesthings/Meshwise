@@ -1,6 +1,21 @@
 package io.github.doesthings.meshwise.ui.viewer
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded._360
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import io.github.doesthings.meshwise.data.ToolbarItem
+import io.github.doesthings.meshwise.ui.components.rememberHaptic
+import io.github.doesthings.meshwise.ui.components.DockButton
+import io.github.doesthings.meshwise.ui.theme.LocalUiPrefs
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -143,17 +158,24 @@ private fun ViewerChrome(vm: ViewerViewModel) {
     val selected by vm.selected.collectAsStateWithLifecycle()
     val parts by vm.parts.collectAsStateWithLifecycle()
     val camera by vm.camera.collectAsStateWithLifecycle()
-    val extra = LocalExtraColors.current
     val info = model ?: return
+    val prefs = LocalUiPrefs.current
 
     val density = LocalDensity.current
     var rootHeight by remember { mutableStateOf(0f) }
-    var topEdge by remember { mutableStateOf(0f) }
+    var clusterEdge by remember { mutableStateOf(0f) }
+    var viewEdge by remember { mutableStateOf(0f) }
     var bottomEdge by remember { mutableStateOf(0f) }
+    var clusterHeight by remember { mutableStateOf(0) }
+    var viewHeight by remember { mutableStateOf(0) }
+    var landscape by remember { mutableStateOf(false) }
+    // In landscape the top controls sit in the corners, so the model may use the full height
+    // above the bottom bars; in portrait it goes between the top controls and the bars.
+    val topEdge = if (landscape) 0f else maxOf(clusterEdge, viewEdge)
     LaunchedEffect(rootHeight, topEdge, bottomEdge) {
         if (rootHeight > 0f && bottomEdge > 0f) {
             val gap = with(density) { 10.dp.toPx() }
-            vm.setViewInsets(topEdge + gap, (rootHeight - bottomEdge) + gap)
+            vm.setViewInsets(if (landscape) 0f else topEdge + gap, (rootHeight - bottomEdge) + gap)
         }
     }
 
@@ -163,55 +185,56 @@ private fun ViewerChrome(vm: ViewerViewModel) {
             .windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp),
     ) {
         val compact = maxWidth < 380.dp
-        val wide = maxWidth > 700.dp
+        val wide = maxWidth > maxHeight
+        landscape = wide
+        val left = settings.leftHanded
+        val dock = settings.dockItems
+        val side = settings.sideItems
 
-        // Top-left tool grid.
-        Column(
-            Modifier.align(Alignment.TopStart).onGloballyPositioned { topEdge = it.positionInRoot().y + it.size.height },
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OverlayButton(Icons.Rounded.Settings, stringResource(R.string.settings)) { vm.openSettings() }
-                OverlayButton(Icons.Rounded.WbSunny, stringResource(R.string.tool_lighting), active = tool == Tool.Lighting) { vm.selectTool(Tool.Lighting) }
-                OverlayButton(Icons.Rounded.Diamond, stringResource(R.string.tool_material), active = tool == Tool.Material) { vm.selectTool(Tool.Material) }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OverlayButton(Icons.Rounded.ContentCut, stringResource(R.string.tool_section), active = tool == Tool.Section) { vm.selectTool(Tool.Section) }
-                OverlayButton(Icons.Rounded.Widgets, stringResource(R.string.tool_explode), active = tool == Tool.Explode) { vm.selectTool(Tool.Explode) }
-                OverlayButton(
-                    Icons.AutoMirrored.Rounded.FormatListBulleted, stringResource(R.string.tool_parts),
-                    active = tool == Tool.Parts, badge = info.parts.size > 1 && tool != Tool.Parts,
-                ) { vm.selectTool(Tool.Parts) }
-            }
-        }
-
-        // Top centre: fit view + projection toggle.
-        Column(
-            Modifier.align(Alignment.TopCenter).padding(start = if (compact) 120.dp else 0.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OverlayButton(Icons.Rounded.Home, stringResource(R.string.home_view), onLongClick = { vm.navigate(Screen.Home) }) { vm.fitView() }
-            OverlayButton(
-                if (settings.orthographic) Icons.Rounded.CropSquare else Icons.Rounded.ViewInAr,
-                stringResource(R.string.projection), size = 40.dp, active = settings.orthographic,
-            ) { vm.toggleOrtho() }
-        }
-
-        // View cube.
-        ViewCube(
-            camera = camera,
-            modifier = Modifier.align(Alignment.TopEnd).size(if (compact) 84.dp else 100.dp),
-            onOrient = { yaw, pitch -> vm.setOrientation(yaw, pitch) },
-            onDrag = { dx, dy -> vm.engine.orbit(dx * 2.2f, dy * 2.2f); vm.requestRender() },
+        // Tool cluster: settings plus the user's "top cluster" tools.
+        SideCluster(
+            vm = vm,
+            items = side,
+            tool = tool,
+            turntable = turntable,
+            columns = if (compact) 3 else 3,
+            badgeParts = info.parts.size > 1,
+            modifier = Modifier.align(if (left) Alignment.TopEnd else Alignment.TopStart)
+                .onGloballyPositioned { clusterEdge = it.positionInRoot().y + it.size.height; clusterHeight = it.size.height },
         )
 
-        // Selected part chip.
+        // View column: cube, fit view and projection.
+        Column(
+            Modifier.align(if (left) Alignment.TopStart else Alignment.TopEnd)
+                .onGloballyPositioned { viewEdge = it.positionInRoot().y + it.size.height; viewHeight = it.size.height },
+            horizontalAlignment = if (left) Alignment.Start else Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (settings.showViewCube) {
+                ViewCube(
+                    camera = camera,
+                    modifier = Modifier.size(if (compact) 84.dp else 96.dp),
+                    onOrient = { yaw, pitch -> vm.setOrientation(yaw, pitch) },
+                    onDrag = { dx, dy -> vm.engine.orbit(dx * 2.2f, dy * 2.2f); vm.requestRender() },
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val small = prefs.buttonSize - 8.dp
+                OverlayButton(Icons.Rounded.CenterFocusStrong, stringResource(R.string.home_view), size = small, onLongClick = { vm.navigate(Screen.Home) }) { vm.fitView() }
+                OverlayButton(
+                    if (settings.orthographic) Icons.Rounded.CropSquare else Icons.Rounded.ViewInAr,
+                    stringResource(R.string.projection), size = small, active = settings.orthographic,
+                ) { vm.toggleOrtho() }
+            }
+        }
+
+        // Selected part chip, just below whatever is tallest at the top.
         if (selected >= 0 && selected < info.parts.size && tool != Tool.Parts && tool != Tool.Explode && tool != Tool.Color) {
+            val chipTop = with(density) { maxOf(clusterHeight, viewHeight).toDp() } + 10.dp
             SelectionChip(
                 name = info.parts[selected].name,
                 visible = parts.getOrNull(selected)?.visible ?: true,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 132.dp),
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = chipTop),
                 onFocus = { vm.focusPart(selected) },
                 onToggleVisible = { vm.setPartVisible(selected, !(parts.getOrNull(selected)?.visible ?: true)) },
                 onIsolate = { vm.isolatePart(selected) },
@@ -219,10 +242,10 @@ private fun ViewerChrome(vm: ViewerViewModel) {
             )
         }
 
-        // Bottom: panel or info bar, then the toolbar.
+        // Bottom: panel or info bar, then the dock.
         Column(
-            Modifier.align(if (wide) Alignment.BottomStart else Alignment.BottomCenter).widthIn(max = 560.dp).fillMaxWidth()
-                .onGloballyPositioned { bottomEdge = if (wide) rootHeight else it.positionInRoot().y },
+            Modifier.align(Alignment.BottomCenter).widthIn(max = 560.dp).fillMaxWidth()
+                .onGloballyPositioned { bottomEdge = it.positionInRoot().y },
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val maxPanel = (this@BoxWithConstraints.maxHeight * if (wide) 0.6f else 0.45f)
@@ -233,7 +256,7 @@ private fun ViewerChrome(vm: ViewerViewModel) {
             ) { t ->
                 Box(Modifier.heightIn(max = maxPanel)) {
                     when (t) {
-                        Tool.None -> InfoBar(vm, turntable)
+                        Tool.None -> if (settings.showInfoBar) InfoBar(vm, turntable)
                         Tool.Lighting -> LightingPanel(vm)
                         Tool.Material -> MaterialPanel(vm)
                         Tool.Section -> SectionPanel(vm)
@@ -248,25 +271,102 @@ private fun ViewerChrome(vm: ViewerViewModel) {
                     }
                 }
             }
-            BottomBar(vm, tool, compact)
+            if (dock.isNotEmpty()) Dock(vm, dock, tool, turntable, settings.showLabels)
+        }
+    }
+}
+
+private fun ToolbarItem.isActive(tool: Tool, turntable: Boolean) =
+    if (this == ToolbarItem.Turntable) turntable else this.tool?.let { it == tool } ?: false
+
+@Composable
+private fun SideCluster(
+    vm: ViewerViewModel,
+    items: List<ToolbarItem>,
+    tool: Tool,
+    turntable: Boolean,
+    columns: Int,
+    badgeParts: Boolean,
+    modifier: Modifier,
+) {
+    val extra = LocalExtraColors.current
+    val scheme = MaterialTheme.colorScheme
+    val prefs = LocalUiPrefs.current
+    val cells: List<ToolbarItem?> = listOf<ToolbarItem?>(null) + items  // null = settings
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(prefs.buttonSize * 0.42f),
+        color = extra.panel,
+        border = BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.45f)),
+        shadowElevation = 6.dp,
+    ) {
+        Column(Modifier.padding(5.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            cells.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    row.forEach { item ->
+                        if (item == null) {
+                            ClusterButton(Icons.Rounded.Settings, stringResource(R.string.settings), active = false) { vm.openSettings() }
+                        } else {
+                            ClusterButton(
+                                item.icon, stringResource(item.longLabel),
+                                active = item.isActive(tool, turntable),
+                                badge = item == ToolbarItem.Parts && badgeParts && tool != Tool.Parts,
+                            ) { vm.onToolbarItem(item) }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun BottomBar(vm: ViewerViewModel, tool: Tool, compact: Boolean) {
+private fun ClusterButton(icon: ImageVector, label: String, active: Boolean, badge: Boolean = false, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
     val extra = LocalExtraColors.current
-    val size = if (compact) 48.dp else 54.dp
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        OverlayButton(Icons.Rounded.FolderOpen, stringResource(R.string.tool_files), size = size) { vm.navigate(Screen.Home) }
-        OverlayButton(Icons.Rounded.Save, stringResource(R.string.tool_save), size = size, active = tool == Tool.Save) { vm.selectTool(Tool.Save) }
-        OverlayButton(
-            Icons.Rounded.Palette, stringResource(R.string.tool_color), size = size,
-            accent = if (tool == Tool.Color) null else extra.accent, active = tool == Tool.Color,
-        ) { vm.selectTool(Tool.Color) }
-        OverlayButton(Icons.Rounded.Scale, stringResource(R.string.tool_weight), size = size, active = tool == Tool.Weight) { vm.selectTool(Tool.Weight) }
-        OverlayButton(Icons.Rounded.Straighten, stringResource(R.string.tool_measure), size = size, active = tool == Tool.Measure) { vm.selectTool(Tool.Measure) }
-        OverlayButton(Icons.Rounded.Insights, stringResource(R.string.tool_analyze), size = size, active = tool == Tool.Analyze) { vm.selectTool(Tool.Analyze) }
+    val prefs = LocalUiPrefs.current
+    val s = prefs.buttonSize - 4.dp
+    val bg by animateColorAsState(if (active) scheme.primaryContainer else Color.Transparent, label = "cluster")
+    val click = rememberHaptic(onClick)
+    Box(
+        Modifier.size(s).clip(RoundedCornerShape(s * 0.32f)).background(bg)
+            .clickable(role = Role.Button, onClickLabel = label, onClick = click),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, label, tint = if (active) scheme.onPrimaryContainer else extra.onOverlayButton, modifier = Modifier.size(prefs.iconSize))
+        if (badge) Box(Modifier.align(Alignment.TopEnd).padding(7.dp).size(7.dp).clip(CircleShape).background(scheme.tertiary))
+    }
+}
+
+@Composable
+private fun Dock(vm: ViewerViewModel, items: List<ToolbarItem>, tool: Tool, turntable: Boolean, showLabels: Boolean) {
+    val extra = LocalExtraColors.current
+    val scheme = MaterialTheme.colorScheme
+    val prefs = LocalUiPrefs.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = extra.panel,
+        border = BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.45f)),
+        shadowElevation = 8.dp,
+    ) {
+        BoxWithConstraints(Modifier.padding(horizontal = 6.dp, vertical = 6.dp)) {
+            val minItem = prefs.dockButton + 2.dp
+            val fits = maxWidth / items.size >= minItem
+            val row = Modifier.fillMaxWidth().then(if (fits) Modifier else Modifier.horizontalScroll(rememberScrollState()))
+            Row(row, horizontalArrangement = if (fits) Arrangement.SpaceEvenly else Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                items.forEach { item ->
+                    DockButton(
+                        icon = item.icon,
+                        label = stringResource(item.label),
+                        active = item.isActive(tool, turntable),
+                        showLabel = showLabels,
+                        tint = if (item == ToolbarItem.Color) extra.accent else null,
+                        modifier = if (fits) Modifier.weight(1f) else Modifier.width(minItem),
+                    ) { vm.onToolbarItem(item) }
+                }
+            }
+        }
     }
 }
 
@@ -281,34 +381,58 @@ private fun InfoBar(vm: ViewerViewModel, turntable: Boolean) {
     val scheme = MaterialTheme.colorScheme
     val b = if (bounds.size.length() > 0f) bounds else info.bounds
     val u = settings.units
-    Row(Modifier.fillMaxWidth().height(76.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        OverlayButton(Icons.Rounded.ViewInAr, stringResource(R.string.model_info), size = 64.dp) { vm.selectTool(Tool.Info) }
-        Surface(
-            modifier = Modifier.weight(1f).height(76.dp).clip(RoundedCornerShape(18.dp)).clickable { vm.toggleDimensions() },
-            shape = RoundedCornerShape(18.dp),
-            color = extra.overlayButton,
-            contentColor = extra.onOverlayButton,
-            shadowElevation = 3.dp,
-        ) {
-            Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    val d = settings.decimals.coerceIn(0, 1)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = extra.panel,
+        contentColor = extra.onOverlayButton,
+        border = BorderStroke(1.dp, if (dims) extra.dimension.copy(alpha = 0.7f) else scheme.outlineVariant.copy(alpha = 0.45f)),
+        shadowElevation = 6.dp,
+    ) {
+        Row(Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            InfoIcon(Icons.Rounded.Info, stringResource(R.string.model_info)) { vm.selectTool(Tool.Info) }
+            Column(
+                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(16.dp)).clickable { vm.toggleDimensions() }.padding(horizontal = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
                 Text(
-                    "${info.name}  ·  ${Fmt.bytes(info.fileSize)} | ${Fmt.count(info.triangles)}△",
+                    "${info.name}  ·  ${Fmt.bytes(info.fileSize)}  ·  ${Fmt.count(info.triangles)} △",
                     style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    color = extra.onOverlayButton.copy(alpha = 0.8f),
+                    color = extra.onOverlayButton.copy(alpha = 0.75f),
                 )
-                Text(
-                    "${Fmt.number(b.size.x * u.factor, 1)} × ${Fmt.number(b.size.y * u.factor, 1)} × ${Fmt.number(b.size.z * u.factor, 1)} ${u.suffix}",
-                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Straighten, null, tint = if (dims) extra.dimension else extra.onOverlayButton.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "${Fmt.number(b.size.x * u.factor, d)} × ${Fmt.number(b.size.y * u.factor, d)} × ${Fmt.number(b.size.z * u.factor, d)} ${u.suffix}",
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center,
+                        color = if (dims) extra.dimension else extra.onOverlayButton,
+                    )
+                }
                 Text(
                     stringResource(if (dims) R.string.hide_dimensions else R.string.tap_for_dimensions),
-                    style = MaterialTheme.typography.labelSmall, color = if (dims) extra.dimension else extra.onOverlayButton.copy(alpha = 0.6f),
+                    style = MaterialTheme.typography.labelSmall, color = extra.onOverlayButton.copy(alpha = 0.55f),
                 )
             }
+            InfoIcon(if (turntable) Icons.Rounded.Pause else Icons.Rounded._360, stringResource(R.string.turntable), active = turntable) { vm.toggleTurntable() }
         }
-        OverlayButton(if (turntable) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, stringResource(R.string.turntable), size = 64.dp, active = turntable) {
-            vm.toggleTurntable()
-        }
+    }
+}
+
+@Composable
+private fun InfoIcon(icon: ImageVector, label: String, active: Boolean = false, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val extra = LocalExtraColors.current
+    val click = rememberHaptic(onClick)
+    Box(
+        Modifier.size(52.dp).clip(RoundedCornerShape(16.dp))
+            .background(if (active) scheme.primaryContainer else extra.onOverlayButton.copy(alpha = 0.07f))
+            .clickable(role = Role.Button, onClickLabel = label, onClick = click),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, label, tint = if (active) scheme.onPrimaryContainer else extra.onOverlayButton)
     }
 }
 
@@ -323,8 +447,14 @@ private fun SelectionChip(
     onClose: () -> Unit,
 ) {
     val extra = LocalExtraColors.current
-    Surface(modifier = modifier, shape = RoundedCornerShape(22.dp), color = extra.panel, shadowElevation = 4.dp) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        modifier = modifier, shape = RoundedCornerShape(22.dp), color = extra.panel, contentColor = scheme.onSurface,
+        border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.5f)), shadowElevation = 6.dp,
+    ) {
         Row(Modifier.padding(start = 14.dp, end = 4.dp).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(scheme.primary))
+            Spacer(Modifier.width(8.dp))
             Text(name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 150.dp))
             Spacer(Modifier.width(4.dp))
             ChipIcon(Icons.Rounded.CenterFocusStrong, stringResource(R.string.focus), onFocus)
@@ -336,7 +466,7 @@ private fun SelectionChip(
 }
 
 @Composable
-private fun ChipIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun ChipIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
     Box(Modifier.size(38.dp).clip(RoundedCornerShape(19.dp)).clickable(onClickLabel = label, onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(icon, label, modifier = Modifier.size(20.dp))
     }

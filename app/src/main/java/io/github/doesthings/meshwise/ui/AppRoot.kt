@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.Button
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
@@ -38,6 +41,7 @@ import io.github.doesthings.meshwise.ui.home.HomeScreen
 import io.github.doesthings.meshwise.ui.library.LibraryScreen
 import io.github.doesthings.meshwise.ui.settings.AboutScreen
 import io.github.doesthings.meshwise.ui.settings.SettingsScreen
+import io.github.doesthings.meshwise.ui.settings.ToolbarScreen
 import io.github.doesthings.meshwise.ui.viewer.LoadingOverlay
 import io.github.doesthings.meshwise.ui.viewer.ViewerScreen
 import io.github.doesthings.meshwise.viewer.Screen
@@ -77,6 +81,8 @@ fun AppRoot(vm: ViewerViewModel) {
     val view = LocalView.current
     view.keepScreenOn = screen == Screen.Viewer && settings.keepScreenOn
 
+    // Pages draw their own backgrounds; give text on them the theme's colour.
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
     Box(Modifier.fillMaxSize()) {
         // The 3D view stays composed while a model is loaded so the GL context survives
         // trips to the home screen.
@@ -93,6 +99,9 @@ fun AppRoot(vm: ViewerViewModel) {
         }
         AnimatedVisibility(visible = screen == Screen.About, enter = fadeIn(), exit = fadeOut()) {
             Box(Modifier.fillMaxSize().blockTouches()) { AboutScreen(vm) }
+        }
+        AnimatedVisibility(visible = screen == Screen.Toolbar, enter = fadeIn(), exit = fadeOut()) {
+            Box(Modifier.fillMaxSize().blockTouches()) { ToolbarScreen(vm) }
         }
 
         loading?.let { LoadingOverlay(it, onCancel = vm::cancelLoading) }
@@ -121,6 +130,7 @@ fun AppRoot(vm: ViewerViewModel) {
             snackbar,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp),
         )
+    }
     }
 }
 

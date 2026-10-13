@@ -4,6 +4,46 @@ All notable changes to Meshwise are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [semantic versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-13
+
+A redesign of the whole interface, plus a lot more ways to make the app your own.
+
+### Added
+- Customizable toolbar: choose which tools sit in the bottom bar, which in the top cluster and
+  which are hidden, and change their order (Settings → Interface → Customize toolbar). Model
+  info, turntable and a quick snapshot button can be added too.
+- Appearance: eight accent colors, a pure black mode for OLED screens, button size
+  (compact/normal/large), panel opacity, button labels, a left-handed layout, and switches for
+  the view cube, the model info bar and haptic feedback.
+- 3D view: adjustable field of view, five more background presets (Midnight, Forest, Dusk,
+  Paper, Studio grey) and a custom two-color gradient, quick standard views in the View panel,
+  an opening view, a default model color and material for files without colors, and a
+  selection highlight color.
+- Controls: invert horizontal or vertical drag, choose what a double tap does (zoom in, fit view
+  or nothing), turntable speed and direction.
+- Measurements: choose 0 to 4 decimal places.
+- Reopen the last model when the app starts; reset all settings.
+- Recent files as a grid of large thumbnails or a list, with search and sorting (last opened,
+  name, size).
+- Transparent PNG export.
+
+### Changed
+- New look throughout: one floating dock at the bottom, a compact tool cluster at the top,
+  single-card tool panels, a segmented control with a sliding highlight, and redesigned home,
+  settings and about screens.
+- The View panel shows display options as chips and keeps brightness and field of view as
+  labelled sliders.
+- Fit view and the projection switch now sit under the view cube.
+- Landscape: the bottom bars are centered and the model is framed in the space above them.
+
+### Fixed
+- The first model opened after launch could be framed too large (cut off at the sides) because
+  it was fitted before the 3D view knew its size. An untouched view now refits when the view
+  size changes, including on rotation.
+- On some screen widths the fit view button overlapped the tool buttons.
+- Page titles were hard to read in the dark theme.
+- Custom background colors are saved in projects.
+
 ## [1.0.0] - 2026-10-13
 
 First public release.

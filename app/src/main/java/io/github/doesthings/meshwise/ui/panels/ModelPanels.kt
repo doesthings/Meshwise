@@ -169,6 +169,7 @@ fun SavePanel(vm: ViewerViewModel) {
     var visibleOnly by rememberSaveable { mutableStateOf(true) }
     var keepExploded by rememberSaveable { mutableStateOf(false) }
     var pendingFormat by rememberSaveable { mutableStateOf(ExportFormat.STL) }
+    var transparentPng by rememberSaveable { mutableStateOf(false) }
     val projectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         if (uri != null) vm.saveProject(uri)
     }
@@ -176,7 +177,7 @@ fun SavePanel(vm: ViewerViewModel) {
         if (uri != null) vm.export(uri, pendingFormat, visibleOnly, keepExploded)
     }
     val pngLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png")) { uri ->
-        if (uri != null) vm.savePng(uri)
+        if (uri != null) vm.savePng(uri, transparentPng)
     }
     ToolPanel(stringResource(R.string.tool_save), Icons.Rounded.Save, onClose = { vm.selectTool(Tool.None) }) {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -203,6 +204,7 @@ fun SavePanel(vm: ViewerViewModel) {
             ExportRow("PNG", stringResource(R.string.export_png)) { pngLauncher.launch(vm.suggestedName("png")) }
             SwitchRow(stringResource(R.string.visible_parts_only), visibleOnly, { visibleOnly = it })
             SwitchRow(stringResource(R.string.apply_explode), keepExploded, { keepExploded = it })
+            SwitchRow(stringResource(R.string.transparent_png), transparentPng, { transparentPng = it })
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 PillButton("${stringResource(R.string.share)} STL", icon = Icons.Rounded.Share) { vm.shareModel(ExportFormat.STL) }

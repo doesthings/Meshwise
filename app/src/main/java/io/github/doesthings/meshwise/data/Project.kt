@@ -30,6 +30,8 @@ data class ProjectState(
     val sectionAxis: Int,
     val sectionValue: Float,
     val sectionFlip: Boolean,
+    val bgTop: Int = 0xFF3C4C55.toInt(),
+    val bgBottom: Int = 0xFF222B31.toInt(),
 ) {
     fun toJson(): String = JSONObject().apply {
         put("app", "Meshwise")
@@ -37,6 +39,10 @@ data class ProjectState(
         put("name", name)
         put("explode", explode.toDouble())
         put("background", background)
+        if (background < 0) {
+            put("backgroundTop", String.format("#%08X", bgTop))
+            put("backgroundBottom", String.format("#%08X", bgBottom))
+        }
         put("lighting", lighting)
         put("exposure", exposure.toDouble())
         put("edges", edges)
@@ -99,6 +105,8 @@ data class ProjectState(
                 sectionAxis = sec?.optInt("axis", 2) ?: 2,
                 sectionValue = sec?.optDouble("value", 0.0)?.toFloat() ?: 0f,
                 sectionFlip = sec?.optBoolean("flip", false) ?: false,
+                bgTop = parseColor(o.optString("backgroundTop", "#FF3C4C55")),
+                bgBottom = parseColor(o.optString("backgroundBottom", "#FF222B31")),
             )
         }
 

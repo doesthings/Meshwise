@@ -62,6 +62,8 @@ object NativeLib {
     @JvmStatic external fun nativeSetViewInsets(h: Long, top: Float, bottom: Float, animate: Boolean)
     @JvmStatic external fun nativeSetTurntable(h: Long, on: Boolean)
     @JvmStatic external fun nativeSetSensitivity(h: Long, s: Float)
+    @JvmStatic external fun nativeSetTurntableSpeed(h: Long, radPerSec: Float)
+    @JvmStatic external fun nativeSetFov(h: Long, degrees: Float)
     @JvmStatic external fun nativeCameraMatrices(h: Long, out: FloatArray): Long
     @JvmStatic external fun nativeGetCamera(h: Long): FloatArray
     @JvmStatic external fun nativeSetCamera(h: Long, state: FloatArray, animate: Boolean)

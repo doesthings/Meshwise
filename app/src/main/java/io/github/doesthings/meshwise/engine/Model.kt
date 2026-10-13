@@ -138,10 +138,12 @@ data class RenderOptions(
     val overhangAngle: Float = 45f,
     val sectionValue: Float = 0f,
     val lineScale: Float = 1f,
+    val bgTop: Int = 0xFF3C4C55.toInt(),
+    val bgBottom: Int = 0xFF222B31.toInt(),
 ) {
     fun ints() = intArrayOf(
         grid.i, shadows.i, edges.i, wireframe.i, axes.i, openEdges.i, background, lighting, mode.id, section.i,
-        sectionAxis, sectionFlip.i, hatch.i, sectionPlane.i, selectColor,
+        sectionAxis, sectionFlip.i, hatch.i, sectionPlane.i, selectColor, bgTop, bgBottom,
     )
 
     fun floats() = floatArrayOf(exposure, scalarMin, scalarMax, threshold, overhangAngle, sectionValue, lineScale)

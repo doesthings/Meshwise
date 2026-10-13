@@ -54,8 +54,26 @@ const BackgroundPreset kBackgrounds[] = {
     {Vec3(0.270f, 0.360f, 0.560f), Vec3(0.090f, 0.130f, 0.230f), true, 0.35f},   // Ocean
     {Vec3(0.000f, 0.000f, 0.000f), Vec3(0.000f, 0.000f, 0.000f), true, 0.0f},    // Black
     {Vec3(1.000f, 1.000f, 1.000f), Vec3(1.000f, 1.000f, 1.000f), false, 0.0f},   // White
+    {Vec3(0.110f, 0.130f, 0.220f), Vec3(0.030f, 0.035f, 0.070f), true, 0.35f},   // Midnight
+    {Vec3(0.200f, 0.290f, 0.240f), Vec3(0.070f, 0.110f, 0.090f), true, 0.35f},   // Forest
+    {Vec3(0.420f, 0.250f, 0.360f), Vec3(0.130f, 0.080f, 0.160f), true, 0.35f},   // Dusk
+    {Vec3(0.970f, 0.950f, 0.910f), Vec3(0.860f, 0.820f, 0.750f), false, 0.15f},  // Paper
+    {Vec3(0.520f, 0.540f, 0.570f), Vec3(0.300f, 0.310f, 0.330f), true, 0.25f},   // Studio grey
 };
 constexpr int kBackgroundCount = sizeof(kBackgrounds) / sizeof(kBackgrounds[0]);
+
+Vec3 argbToVec(uint32_t c) {
+    return Vec3(((c >> 16) & 255u) / 255.f, ((c >> 8) & 255u) / 255.f, (c & 255u) / 255.f);
+}
+
+// The preset for the options, or one built from the custom colours.
+BackgroundPreset backgroundFor(const RenderOptions& o) {
+    if (o.background != kCustomBackground) return kBackgrounds[std::clamp(o.background, 0, kBackgroundCount - 1)];
+    Vec3 top = argbToVec(o.bgTop), bottom = argbToVec(o.bgBottom);
+    auto luma = [](const Vec3& v) { return 0.2126f * v.x + 0.7152f * v.y + 0.0722f * v.z; };
+    bool dark = (luma(top) + luma(bottom)) * 0.5f < 0.5f;
+    return {top, bottom, dark, dark ? 0.30f : 0.15f};
+}
 
 uint32_t packNormal(float x, float y, float z) {
     auto q = [](float v) {
@@ -411,7 +429,7 @@ void Renderer::drawLines(LineSet set, const FrameParams& f, const RenderOptions&
 }
 
 void Renderer::drawGrid(const FrameParams& f, const RenderOptions& o) {
-    const BackgroundPreset& bg = kBackgrounds[std::clamp(o.background, 0, kBackgroundCount - 1)];
+    const BackgroundPreset bg = backgroundFor(o);
     Vec3 c = f.bounds.center();
     float r = std::max(1e-3f, f.bounds.radius());
     float extent = std::max(r * 6.f, length(f.eye - c) * 1.5f);
@@ -457,7 +475,7 @@ void Renderer::drawGrid(const FrameParams& f, const RenderOptions& o) {
 }
 
 void Renderer::drawBackground(const RenderOptions& o) {
-    const BackgroundPreset& bg = kBackgrounds[std::clamp(o.background, 0, kBackgroundCount - 1)];
+    const BackgroundPreset bg = backgroundFor(o);
     glUseProgram(bg_.id);
     glUniform3f(bg_.loc("uTop"), bg.top.x, bg.top.y, bg.top.z);
     glUniform3f(bg_.loc("uBottom"), bg.bottom.x, bg.bottom.y, bg.bottom.z);
@@ -594,7 +612,7 @@ void Renderer::render(const FrameParams& f, const RenderOptions& o, GLuint targe
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
-    const BackgroundPreset& bg = kBackgrounds[std::clamp(o.background, 0, kBackgroundCount - 1)];
+    const BackgroundPreset bg = backgroundFor(o);
     if (lines) {
         if (o.wireframe) {
             float c[4] = {bg.dark ? 0.08f : 0.05f, bg.dark ? 0.09f : 0.06f, bg.dark ? 0.10f : 0.07f, 0.45f};

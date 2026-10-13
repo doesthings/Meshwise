@@ -132,7 +132,7 @@ class ViewerSurfaceView(context: Context, private val vm: ViewerViewModel) : GLS
                             lastX = x; lastY = y
                         }
                         if (mode == Mode.Orbit) {
-                            engine.orbit(x - lastX, y - lastY)
+                            vm.orbitDrag(x - lastX, y - lastY)
                             requestRender()
                         }
                         if (mode == Mode.AfterMulti) {
@@ -159,7 +159,8 @@ class ViewerSurfaceView(context: Context, private val vm: ViewerViewModel) : GLS
                     if (mode == Mode.Orbit) {
                         val vx = vt.xVelocity
                         val vy = vt.yVelocity
-                        if (abs(vx) > 250f || abs(vy) > 250f) engine.fling(vx, vy)
+                        val st = vm.settings.value
+                        if (abs(vx) > 250f || abs(vy) > 250f) engine.fling(if (st.invertX) -vx else vx, if (st.invertY) -vy else vy)
                     }
                     vt.recycle()
                 }

@@ -329,6 +329,8 @@ void Engine::setViewInsets(float top, float bottom, bool animate) {
 void Engine::setTurntable(bool on) { std::lock_guard<std::mutex> lk(mu_); camera_.setTurntable(on); }
 bool Engine::turntable() const { std::lock_guard<std::mutex> lk(mu_); return camera_.turntable(); }
 void Engine::setSensitivity(float s) { std::lock_guard<std::mutex> lk(mu_); camera_.setSensitivity(s); }
+void Engine::setTurntableSpeed(float radPerSec) { std::lock_guard<std::mutex> lk(mu_); camera_.setTurntableSpeed(radPerSec); }
+void Engine::setFov(float radians) { std::lock_guard<std::mutex> lk(mu_); camera_.setFov(radians); }
 
 CameraState Engine::cameraState() const {
     std::lock_guard<std::mutex> lk(mu_);

@@ -28,6 +28,8 @@ struct PartGpu {
 
 enum class ShadingMode : int { Shaded = 0, ThicknessGradient = 1, ThicknessThreshold = 2, Overhang = 3, Normals = 4 };
 
+constexpr int kCustomBackground = -1;
+
 struct RenderOptions {
     bool grid = true;
     bool shadows = true;
@@ -35,7 +37,8 @@ struct RenderOptions {
     bool wireframe = false;
     bool axes = false;
     bool openEdges = false;
-    int background = 0;
+    int background = 0;        // preset index, or kCustomBackground for bgTop/bgBottom
+    uint32_t bgTop = 0xFF3C4C55u, bgBottom = 0xFF222B31u;  // ARGB, used by kCustomBackground
     int lighting = 0;
     float exposure = 1.f;
     ShadingMode mode = ShadingMode::Shaded;

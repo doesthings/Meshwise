@@ -81,6 +81,8 @@ public:
     void setTurntable(bool on);
     bool turntable() const;
     void setSensitivity(float s);
+    void setTurntableSpeed(float radPerSec);
+    void setFov(float radians);
     CameraState cameraState() const;
     void setCameraState(const CameraState& s, bool animate);
     // Fills viewProj (16 floats), returns camera version; also yaw/pitch for the view cube.

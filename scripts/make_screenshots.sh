@@ -35,6 +35,8 @@ C=(--size 1080x2400 --linescale 1.5)
 "$R" --in "$A/keychain.3mf" --out "$OUT/09_dimensions.png" "${C[@]}" $(insets 09_dimensions)
 "$R" --in "$A/keychain.3mf" --out "$OUT/10_color.png" "${C[@]}" $(insets 10_color)
 "$R" --in "$A/spur_gear.stl" --out "$OUT/11_weight.png" "${C[@]}" $(insets 11_weight)
+"$R" --in "$ASM" --out "$OUT/13_view.png" "${C[@]}" $(insets 13_view) --edges
+"$R" --in "$ASM" --out "$OUT/14_custom.png" "${C[@]}" $(insets 14_custom) --edges --bg 6
 
 T=(--size 320x320 --linescale 1)
 "$R" --in "$ASM" --out "$OUT/thumb_bearing_assembly.png" "${T[@]}" --edges

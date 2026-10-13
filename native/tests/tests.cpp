@@ -391,6 +391,38 @@ int main() {
         CHECK_NEAR(cam.forward().y, 1.0, 1e-5);
     });
 
+    test("camera: a fit made before the view had its size is redone", [] {
+        Camera cam;
+        Box3 box;
+        box.expand(Vec3(-32, -15, 0));
+        box.expand(Vec3(32, 15, 4));
+        cam.setScene(box.center(), box.radius());
+        cam.setView(StandardView::Iso, false);
+        cam.fitBox(box, false);  // viewport still 1x1
+        cam.setViewport(1080, 1920);
+        for (int i = 0; i < 8; ++i) {
+            Vec3 p((i & 1) ? 32.f : -32.f, (i & 2) ? 15.f : -15.f, (i & 4) ? 4.f : 0.f);
+            Vec4 c = cam.viewProj() * Vec4(p, 1);
+            CHECK(std::fabs(c.x / c.w) < 1.f && std::fabs(c.y / c.w) < 1.f);
+        }
+    });
+
+    test("camera: changing the field of view keeps the framing", [] {
+        Camera cam;
+        cam.setViewport(800, 600);
+        cam.setScene(Vec3(0, 0, 0), 10);
+        cam.setView(StandardView::Iso, false);
+        cam.fit(Vec3(0, 0, 0), 10, false);
+        float wpp = cam.worldPerPixel();
+        float dist = cam.state().distance;
+        cam.setFov(60.f * kPi / 180.f);
+        CHECK_NEAR(cam.worldPerPixel(), wpp, 1e-4);
+        CHECK(cam.state().distance < dist);  // wider lens moves closer
+        cam.setFov(0.05f);                   // clamped to 10°
+        CHECK_NEAR(cam.fovY(), 10.f * kPi / 180.f, 1e-5);
+        CHECK_NEAR(cam.worldPerPixel(), wpp, 1e-4);
+    });
+
     test("camera: insets shift the image into the visible band", [] {
         Camera cam;
         cam.setViewport(1000, 2000);

@@ -21,7 +21,10 @@ IMAGES = os.path.join(ROOT, "docs", "images")
 def font(size, bold=False):
     candidates = [
         "/usr/share/fonts/opentype/inter/Inter-Bold.otf" if bold else "/usr/share/fonts/opentype/inter/Inter-Regular.otf",
+        "/usr/share/fonts/noto/NotoSans-Bold.ttf" if bold else "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/TTF/DejaVuSans.ttf",
     ]
     for c in candidates:
         if os.path.exists(c):
@@ -106,7 +109,8 @@ def main():
         d.text((114, 340), "Free, open-source 3D model viewer for Android", font=font(43), fill=(208, 188, 255))
         lines = ["STL · OBJ · 3MF · PLY · OFF · STEP · IGES · BREP · ZIP",
                  "Section caps · Wall thickness · Measure · Explode",
-                 "Weight · Materials · Mesh check · Export"]
+                 "Weight · Materials · Mesh check · Export",
+                 "Themes · Custom toolbar · Left-handed layout"]
         for i, line in enumerate(lines):
             d.text((114, 450 + i * 64), line, font=font(36), fill=(200, 204, 210))
         x = 1180

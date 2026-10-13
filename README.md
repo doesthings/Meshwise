@@ -65,7 +65,12 @@ old one. If you turn on the optional update check, the app tells you when a new 
   <tr>
     <td align="center"><img src="docs/screenshots/10_color.png" width="260"><br><sub><b>Color</b>: paint parts, custom colors</sub></td>
     <td align="center"><img src="docs/screenshots/11_weight.png" width="260"><br><sub><b>Weight</b>: filament, infill, walls, cost</sub></td>
-    <td align="center"><img src="docs/screenshots/12_settings.png" width="260"><br><sub><b>Settings</b>: theme, units, shading, CAD quality</sub></td>
+    <td align="center"><img src="docs/screenshots/12_settings.png" width="260"><br><sub><b>Settings</b>: themes, accent colors, controls, units</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/13_view.png" width="260"><br><sub><b>View</b>: standard views, lighting, backgrounds, field of view</sub></td>
+    <td align="center"><img src="docs/screenshots/14_custom.png" width="260"><br><sub><b>Your layout</b>: accent color, labels, left-handed mode</sub></td>
+    <td align="center"><img src="docs/screenshots/15_toolbar.png" width="260"><br><sub><b>Customize toolbar</b>: pick, place and order the tools</sub></td>
   </tr>
 </table>
 
@@ -80,9 +85,10 @@ old one. If you turn on the optional update check, the app tells you when a new 
 
 **A fast, clear viewer**
 - Orbit, pan and pinch-zoom with inertia; zoom toward your fingers; double-tap to focus on a point
-- View cube, standard views, perspective or orthographic projection, turntable mode
-- Physically based materials (matte, satin, glossy, resin, rubber, ceramic, steel, aluminium, chrome, gold, silver, copper), studio, outdoor and flat lighting, soft shadows on a grid floor
-- Smooth shading that keeps sharp edges crisp, feature edges, wireframe and axes, light and dark themes, Material You colors
+- View cube, standard views, perspective or orthographic projection with an adjustable field of view, turntable mode
+- Physically based materials (matte, satin, glossy, resin, rubber, ceramic, steel, aluminium, chrome, gold, silver, copper, brass, titanium), studio, soft, dramatic, flat and headlight lighting, soft shadows on a grid floor
+- Eleven background presets or your own two-color gradient
+- Smooth shading that keeps sharp edges crisp, feature edges, wireframe and axes
 
 **Inspect and analyze**
 - **Section analysis**: cut along X, Y or Z, flip the side, type an exact cut value, solid hatched caps
@@ -97,9 +103,17 @@ old one. If you turn on the optional update check, the app tells you when a new 
 - Explode slider, plus a manual mode with a 3-axis drag gizmo, per-part hide and undo
 - Paint parts individually or all at once, and assign materials per part
 
+**Make it yours**
+- Light, dark or system theme, eight accent colors or Material You, and a pure black mode for OLED screens
+- Customize the toolbar: choose which tools sit in the bottom bar, which in the top cluster and which are hidden, and set their order
+- Button size, panel opacity, button labels, a left-handed layout, and switches for the view cube and the info bar
+- Opening view, model color and material for files without colors, selection highlight color
+- Controls: rotation speed, inverted drag, what a double tap does, turntable speed and direction, haptic feedback
+- Measurement units and decimal places, reopen the last model on start, and one tap to reset everything
+
 **Save and share**
 - Save projects (`.meshwise`: camera, colors, materials, explode layout, section) and reopen them later
-- Export STL, OBJ (with part names), 3MF (with names and colors) or high-resolution PNG snapshots
+- Export STL, OBJ (with part names), 3MF (with names and colors) or high-resolution PNG snapshots, optionally with a transparent background
 - Share any export straight to another app
 
 ## Performance

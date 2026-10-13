@@ -60,6 +60,8 @@ class EngineReleaseTest {
         e.setViewInsets(0f, 0f)
         e.setTurntable(true)
         e.setSensitivity(1f)
+        e.setTurntableSpeed(0.6f)
+        e.setFov(50f)
         e.camera()
         e.setCamera(CameraState(Vec3(0f, 0f, 0f), 10f, 0f, 0f, false), false)
         e.cameraFrame()

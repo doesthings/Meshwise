@@ -17,6 +17,9 @@ import io.github.doesthings.meshwise.engine.MaterialPreset
 import io.github.doesthings.meshwise.engine.Vec3
 import io.github.doesthings.meshwise.ui.AppRoot
 import io.github.doesthings.meshwise.ui.theme.MeshwiseTheme
+import io.github.doesthings.meshwise.ui.theme.UiPrefs
+import io.github.doesthings.meshwise.data.ToolbarItem
+import io.github.doesthings.meshwise.viewer.Screen
 import io.github.doesthings.meshwise.ui.viewer.LocalViewerBackdrop
 import io.github.doesthings.meshwise.viewer.AnalyzeTab
 import io.github.doesthings.meshwise.viewer.MeasureMode
@@ -54,7 +57,7 @@ class ScreenshotTest {
     fun setUp() {
         assumeTrue(TestSupport.nativeAvailable())
         app.recents.clear()
-        app.settings.update { it.copy(updateChecks = UPDATES_OFF) }
+        app.settings.update { it.resetKeepingState().copy(updateChecks = UPDATES_OFF) }
         vm = ViewerViewModel(app)
         vm.density = 3f
         vm.engine.onSurfaceChanged(1080, 2400)
@@ -68,9 +71,13 @@ class ScreenshotTest {
     private fun shoot(name: String, backdropName: String? = name) {
         vm.onFrameRendered()
         val bd = backdropName?.let { backdrop(it) }
+        val st = app.settings.current
         compose.setContent {
             CompositionLocalProvider(LocalViewerBackdrop provides bd) {
-                MeshwiseTheme(themeMode = 2) { AppRoot(vm) }
+                MeshwiseTheme(
+                    themeMode = 2, accent = st.accent, pureBlack = st.pureBlack,
+                    uiPrefs = UiPrefs(st.uiScale, st.showLabels, st.haptics, st.panelOpacity),
+                ) { AppRoot(vm) }
             }
         }
         compose.mainClock.advanceTimeBy(1500)
@@ -214,6 +221,34 @@ class ScreenshotTest {
         open(ModelSource.FromAsset("samples/spur_gear.stl"))
         vm.selectTool(Tool.Weight)
         shoot("11_weight")
+    }
+
+    @Test
+    fun viewPanel() {
+        openAssembly()
+        vm.selectTool(Tool.Lighting)
+        shoot("13_view")
+    }
+
+    @Test
+    fun customized() {
+        vm.updateSettings {
+            it.copy(accent = 1, leftHanded = true, showLabels = true, background = 6)
+        }
+        vm.setToolbar(
+            listOf(ToolbarItem.Files, ToolbarItem.Section, ToolbarItem.Measure, ToolbarItem.Analyze, ToolbarItem.Turntable),
+            listOf(ToolbarItem.View, ToolbarItem.Material, ToolbarItem.Parts, ToolbarItem.Snapshot, ToolbarItem.Save),
+        )
+        openAssembly()
+        shoot("14_custom")
+    }
+
+    @Test
+    fun toolbar() {
+        open(ModelSource.FromAsset("samples/spur_gear.stl"))
+        vm.openSettings()
+        vm.navigate(Screen.Toolbar)
+        shoot("15_toolbar", null)
     }
 
     @Test

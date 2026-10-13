@@ -66,8 +66,8 @@ object Palette {
 }
 
 object Backgrounds {
-    val names = listOf("Slate", "Graphite", "Light", "Ocean", "Black", "White")
-    /** Approximate preview colours (top, bottom) for the picker. */
+    val names = listOf("Slate", "Graphite", "Light", "Ocean", "Black", "White", "Midnight", "Forest", "Dusk", "Paper", "Studio grey")
+    /** Approximate preview colours (top, bottom) for the picker; match native/core/renderer.cpp. */
     val previews: List<Pair<Int, Int>> = listOf(
         0xFF3C4C55.toInt() to 0xFF222B31.toInt(),
         0xFF2A2A2E.toInt() to 0xFF121214.toInt(),
@@ -75,8 +75,24 @@ object Backgrounds {
         0xFF455C8F.toInt() to 0xFF17213A.toInt(),
         0xFF000000.toInt() to 0xFF000000.toInt(),
         0xFFFFFFFF.toInt() to 0xFFFFFFFF.toInt(),
+        0xFF1C2138.toInt() to 0xFF080912.toInt(),
+        0xFF334A3D.toInt() to 0xFF121C17.toInt(),
+        0xFF6B405C.toInt() to 0xFF211429.toInt(),
+        0xFFF7F2E8.toInt() to 0xFFDBD1BF.toInt(),
+        0xFF858A91.toInt() to 0xFF4D4F54.toInt(),
     )
-    fun isDark(i: Int) = i != 2 && i != 5
+
+    /** Background colours (top, bottom) for a setting, including the custom gradient. */
+    fun colors(index: Int, customTop: Int, customBottom: Int): Pair<Int, Int> =
+        if (index < 0) customTop to customBottom else previews.getOrElse(index) { previews[0] }
+
+    fun isDark(index: Int, customTop: Int = 0, customBottom: Int = 0): Boolean {
+        val (t, b) = colors(index, customTop, customBottom)
+        return (luma(t) + luma(b)) / 2f < 0.5f
+    }
+
+    private fun luma(c: Int): Float =
+        (0.2126f * ((c shr 16) and 255) + 0.7152f * ((c shr 8) and 255) + 0.0722f * (c and 255)) / 255f
 }
 
 object Lighting {

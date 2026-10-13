@@ -5,7 +5,7 @@ import io.github.doesthings.meshwise.engine.PickHit
 import io.github.doesthings.meshwise.engine.ThicknessResult
 import io.github.doesthings.meshwise.engine.Vec3
 
-enum class Screen { Home, Viewer, Settings, Library, About }
+enum class Screen { Home, Viewer, Settings, Library, About, Toolbar }
 
 enum class Tool { None, Lighting, Material, Section, Explode, Parts, Save, Color, Weight, Measure, Analyze, Info }
 

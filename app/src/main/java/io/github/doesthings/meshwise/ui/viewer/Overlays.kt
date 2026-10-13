@@ -27,6 +27,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -357,7 +358,16 @@ fun LoadingOverlay(state: LoadingState, onCancel: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
         Surface(shape = RoundedCornerShape(24.dp), color = scheme.surfaceContainerHigh, shadowElevation = 12.dp, modifier = Modifier.padding(32.dp).widthIn(max = 420.dp)) {
             Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(state.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(scheme.primaryContainer), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.ViewInAr, null, tint = scheme.onPrimaryContainer)
+                    }
+                    Spacer(Modifier.size(12.dp))
+                    Text(state.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (state.progress > 0.001f) {
+                        Text("${(state.progress * 100).toInt()}%", style = MaterialTheme.typography.titleSmall, color = scheme.primary)
+                    }
+                }
                 Text(
                     stringResource(
                         when (state.stage) {

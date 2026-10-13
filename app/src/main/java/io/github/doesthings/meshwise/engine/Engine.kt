@@ -75,6 +75,8 @@ class Engine {
     fun setViewInsets(top: Float, bottom: Float, animate: Boolean = true) = NativeLib.nativeSetViewInsets(handle, top, bottom, animate)
     fun setTurntable(on: Boolean) = NativeLib.nativeSetTurntable(handle, on)
     fun setSensitivity(s: Float) = NativeLib.nativeSetSensitivity(handle, s)
+    fun setTurntableSpeed(radPerSec: Float) = NativeLib.nativeSetTurntableSpeed(handle, radPerSec)
+    fun setFov(degrees: Float) = NativeLib.nativeSetFov(handle, degrees)
 
     fun camera(): CameraState = NativeLib.nativeGetCamera(handle).let {
         CameraState(Vec3(it[0], it[1], it[2]), it[3], it[4], it[5], it[6] > 0.5f)

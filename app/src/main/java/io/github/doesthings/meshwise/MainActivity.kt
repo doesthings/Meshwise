@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.doesthings.meshwise.ui.AppRoot
 import io.github.doesthings.meshwise.ui.theme.MeshwiseTheme
+import io.github.doesthings.meshwise.ui.theme.UiPrefs
 import io.github.doesthings.meshwise.viewer.ViewerViewModel
 
 class MainActivity : ComponentActivity() {
@@ -23,11 +24,17 @@ class MainActivity : ComponentActivity() {
         vm.density = resources.displayMetrics.density
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
-            MeshwiseTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
+            MeshwiseTheme(
+                themeMode = settings.themeMode,
+                dynamicColor = settings.dynamicColor,
+                accent = settings.accent,
+                pureBlack = settings.pureBlack,
+                uiPrefs = UiPrefs(settings.uiScale, settings.showLabels, settings.haptics, settings.panelOpacity),
+            ) {
                 AppRoot(vm)
             }
         }
-        if (savedInstanceState == null) handleIntent(intent)
+        if (savedInstanceState == null && !handleIntent(intent)) vm.reopenLastIfWanted()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -35,9 +42,10 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
-    private fun handleIntent(intent: Intent?) {
+    /** Opens a file sent to the app; returns false when the intent had none. */
+    private fun handleIntent(intent: Intent?): Boolean {
         when (intent?.action) {
-            Intent.ACTION_VIEW -> intent.data?.let { vm.openUri(it) }
+            Intent.ACTION_VIEW -> intent.data?.let { vm.openUri(it); return true }
             Intent.ACTION_SEND -> {
                 val uri: Uri? = if (Build.VERSION.SDK_INT >= 33) {
                     intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
@@ -45,8 +53,9 @@ class MainActivity : ComponentActivity() {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra(Intent.EXTRA_STREAM)
                 }
-                uri?.let { vm.openUri(it) }
+                uri?.let { vm.openUri(it); return true }
             }
         }
+        return false
     }
 }

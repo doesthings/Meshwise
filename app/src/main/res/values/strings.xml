@@ -250,4 +250,111 @@
     <string name="buy_coffee">Buy me a coffee</string>
     <string name="star_github">Star on GitHub</string>
     <string name="support_cd">Support Meshwise on Ko-fi</string>
+
+    <!-- Toolbar buttons (short labels) -->
+    <string name="label_files">Files</string>
+    <string name="label_save">Save</string>
+    <string name="label_color">Color</string>
+    <string name="label_weight">Weight</string>
+    <string name="label_measure">Measure</string>
+    <string name="label_analyze">Analyze</string>
+    <string name="label_view">View</string>
+    <string name="label_material">Material</string>
+    <string name="label_section">Section</string>
+    <string name="label_explode">Explode</string>
+    <string name="label_parts">Parts</string>
+    <string name="label_info">Info</string>
+    <string name="label_snapshot">Snapshot</string>
+    <string name="label_turntable">Spin</string>
+    <string name="more_tools">More tools</string>
+
+    <!-- Customization -->
+    <string name="interface_group">Interface</string>
+    <string name="accent_color">Accent color</string>
+    <string name="pure_black">Pure black</string>
+    <string name="pure_black_summary">Black backgrounds in the dark theme, easier on OLED screens</string>
+    <string name="interface_size">Button size</string>
+    <string name="size_compact">Compact</string>
+    <string name="size_normal">Normal</string>
+    <string name="size_large">Large</string>
+    <string name="panel_opacity">Panel opacity</string>
+    <string name="panel_opacity_summary">Lower values let more of the model show through</string>
+    <string name="show_labels">Button labels</string>
+    <string name="show_labels_summary">Show names under the bottom bar buttons</string>
+    <string name="left_handed">Left-handed layout</string>
+    <string name="left_handed_summary">Tools on the right, view cube on the left</string>
+    <string name="show_view_cube">View cube</string>
+    <string name="show_info_bar">Model info bar</string>
+    <string name="show_info_bar_summary">Name, size and dimensions above the bottom bar</string>
+    <string name="haptics">Haptic feedback</string>
+    <string name="customize_toolbar">Customize toolbar</string>
+    <string name="customize_toolbar_summary">Choose which tools show up, where, and in what order</string>
+    <string name="toolbar_dock">Bottom bar</string>
+    <string name="toolbar_side">Top cluster</string>
+    <string name="toolbar_hidden">Hidden</string>
+    <string name="toolbar_hint">Move a tool between the bottom bar, the top cluster or hidden. Use the arrows to change the order. The bottom bar scrolls when it holds more than it can fit.</string>
+    <string name="toolbar_preview">Preview</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="reset_layout">Reset layout</string>
+    <string name="view_3d">3D view</string>
+    <string name="field_of_view">Field of view</string>
+    <string name="field_of_view_summary">Wider angles exaggerate perspective; narrow ones look flatter</string>
+    <string name="default_view">Opening view</string>
+    <string name="view_iso">Iso</string>
+    <string name="view_front">Front</string>
+    <string name="view_back">Back</string>
+    <string name="view_left">Left</string>
+    <string name="view_right">Right</string>
+    <string name="view_top">Top</string>
+    <string name="view_bottom">Bottom</string>
+    <string name="model_color">Model color</string>
+    <string name="model_color_summary">For single-part files that don\'t store a color</string>
+    <string name="color_auto">Auto</string>
+    <string name="model_material">Model material</string>
+    <string name="selection_color">Selection highlight</string>
+    <string name="controls">Controls</string>
+    <string name="invert_x">Invert horizontal drag</string>
+    <string name="invert_y">Invert vertical drag</string>
+    <string name="double_tap">Double tap</string>
+    <string name="double_tap_zoom">Zoom in</string>
+    <string name="double_tap_fit">Fit view</string>
+    <string name="double_tap_none">Nothing</string>
+    <string name="turntable_speed">Turntable speed</string>
+    <string name="turntable_reverse">Spin the other way</string>
+    <string name="measurements">Measurements</string>
+    <string name="decimals">Decimal places</string>
+    <string name="startup">Startup</string>
+    <string name="reopen_last">Reopen last model</string>
+    <string name="reopen_last_summary">Open the most recent file when the app starts</string>
+    <string name="reset_settings">Reset all settings</string>
+    <string name="reset_settings_message">Restore every setting to its default? Your files, library and recent files are kept.</string>
+    <string name="settings_reset_done">Settings restored</string>
+    <string name="custom_background">Custom gradient</string>
+    <string name="gradient_top">Top</string>
+    <string name="gradient_bottom">Bottom</string>
+    <string name="standard_views">Views</string>
+    <string name="display">Display</string>
+    <string name="lighting_exposure">Brightness</string>
+
+    <!-- Home -->
+    <string name="home_tagline">3D model viewer</string>
+    <string name="open_model_hint">From your files, Drive, email or any app</string>
+    <string name="sort_recent">Last opened</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_size">Size</string>
+    <string name="layout_grid">Grid view</string>
+    <string name="layout_list">List view</string>
+    <string name="search_recents">Search recent files</string>
+    <string name="no_matches">No matching files</string>
+    <string name="sort">Sort</string>
+    <string name="try_sample">Try a sample</string>
+    <string name="search">Search</string>
+
+    <!-- Save -->
+    <string name="transparent_png">Transparent PNG</string>
+    <plurals name="recent_count">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
 </resources>

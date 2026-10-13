@@ -21,6 +21,7 @@ import io.github.doesthings.meshwise.data.PartState
 import io.github.doesthings.meshwise.data.ProjectState
 import io.github.doesthings.meshwise.data.RecentFile
 import io.github.doesthings.meshwise.data.SettingsValues
+import io.github.doesthings.meshwise.data.ToolbarItem
 import io.github.doesthings.meshwise.data.UPDATES_OFF
 import io.github.doesthings.meshwise.data.UPDATES_ON
 import io.github.doesthings.meshwise.data.UpdateInfo
@@ -273,7 +274,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     /** Back handling: returns true when consumed. */
     fun back(): Boolean {
         when {
-            _screen.value == Screen.About -> _screen.value = Screen.Settings
+            _screen.value == Screen.About || _screen.value == Screen.Toolbar -> _screen.value = Screen.Settings
             _screen.value == Screen.Settings -> closeSettings()
             _screen.value == Screen.Library -> _screen.value = Screen.Home
             _screen.value == Screen.Viewer && _manualExplode.value -> setManualExplode(false)
@@ -374,7 +375,17 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         _meshCheck.value = null
         _analysisReady.value = false
         _showDimensions.value = false
-        _parts.value = info.parts.map { p -> PartState(color = p.fileColor, useVertexColors = p.hasVertexColors) }
+        val prefs = settings.value
+        val material = MaterialPreset.entries.getOrElse(prefs.defaultMaterial) { MaterialPreset.Matte }
+        _parts.value = info.parts.map { p ->
+            val color = if (prefs.modelColor != 0 && info.parts.size == 1 && !p.hasFileColor && !p.hasVertexColors) prefs.modelColor else p.fileColor
+            PartState(color = color, useVertexColors = p.hasVertexColors, material = material.takeIf { it.color == null } ?: MaterialPreset.Matte)
+        }
+        if (project == null) _parts.value.forEachIndexed { i, st -> if (st.color != info.parts[i].fileColor || st.material != MaterialPreset.Matte) pushPart(i, st) }
+        if (project?.camera == null && prefs.defaultView != StandardView.Iso.id) {
+            StandardView.entries.firstOrNull { it.id == prefs.defaultView }?.let { engine.setStandardView(it, animate = false) }
+            engine.fitView(animate = false)
+        }
         _section.value = SectionState(value = info.bounds.center.z)
         _options.update {
             it.copy(mode = ShadingMode.Shaded, section = false, openEdges = false, edges = edgesFor(settings.value), wireframe = false)
@@ -439,7 +450,8 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         _section.value = SectionState(axis = p.sectionAxis, value = p.sectionValue, flip = p.sectionFlip)
         _options.update {
             it.copy(background = p.background, lighting = p.lighting, exposure = p.exposure, edges = p.edges, wireframe = p.wireframe,
-                section = p.section, sectionAxis = p.sectionAxis, sectionValue = p.sectionValue, sectionFlip = p.sectionFlip)
+                section = p.section, sectionAxis = p.sectionAxis, sectionValue = p.sectionValue, sectionFlip = p.sectionFlip,
+                bgTop = p.bgTop, bgBottom = p.bgBottom)
         }
     }
 
@@ -468,15 +480,52 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         _options.update {
             it.copy(
                 background = s.background, lighting = s.lighting, exposure = s.exposure, grid = s.grid, shadows = s.shadows,
-                axes = s.axes, edges = edgesFor(s), lineScale = density / 2f,
+                axes = s.axes, edges = edgesFor(s), lineScale = density / 2f, bgTop = s.bgTop, bgBottom = s.bgBottom,
+                selectColor = s.selectColor,
             )
         }
         engine.setOrtho(s.orthographic)
         engine.setSensitivity(s.sensitivity)
+        engine.setFov(s.fov)
+        io.github.doesthings.meshwise.util.Fmt.decimals = s.decimals.coerceIn(0, 4)
+        engine.setTurntableSpeed(TURNTABLE_RAD_PER_SEC * s.turntableSpeed)
         pushOptions()
     }
 
     fun updateSettings(transform: (SettingsValues) -> SettingsValues) = app.settings.update(transform)
+
+    fun resetSettings() = updateSettings { it.resetKeepingState() }
+
+    /** Places the toolbar buttons: [dock] at the bottom, [side] in the top cluster, the rest hidden. */
+    fun setToolbar(dock: List<ToolbarItem>, side: List<ToolbarItem>) = updateSettings {
+        it.copy(dock = ToolbarItem.encode(dock), side = ToolbarItem.encode(side.filter { t -> t !in dock }))
+    }
+
+    /** Runs a toolbar button. */
+    fun onToolbarItem(item: ToolbarItem) {
+        when (item) {
+            ToolbarItem.Files -> navigate(Screen.Home)
+            ToolbarItem.Save -> selectTool(Tool.Save)
+            ToolbarItem.Color -> selectTool(Tool.Color)
+            ToolbarItem.Weight -> selectTool(Tool.Weight)
+            ToolbarItem.Measure -> selectTool(Tool.Measure)
+            ToolbarItem.Analyze -> selectTool(Tool.Analyze)
+            ToolbarItem.View -> selectTool(Tool.Lighting)
+            ToolbarItem.Material -> selectTool(Tool.Material)
+            ToolbarItem.Section -> selectTool(Tool.Section)
+            ToolbarItem.Explode -> selectTool(Tool.Explode)
+            ToolbarItem.Parts -> selectTool(Tool.Parts)
+            ToolbarItem.Info -> selectTool(Tool.Info)
+            ToolbarItem.Snapshot -> shareSnapshot()
+            ToolbarItem.Turntable -> toggleTurntable()
+        }
+    }
+
+    /** Opens the most recent file at launch when the user asked for that. */
+    fun reopenLastIfWanted() {
+        if (!settings.value.reopenLast || _model.value != null || _loading.value != null) return
+        recents.value.firstOrNull()?.let { openRecent(it) }
+    }
 
     fun updateOptions(transform: (RenderOptions) -> RenderOptions) {
         _options.update(transform)
@@ -565,9 +614,21 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun onDoubleTap(x: Float, y: Float) {
-        val hit = engine.pick(x, y)
-        if (hit != null) engine.focusPoint(hit.point, 1.8f) else engine.fitView(true)
+        when (settings.value.doubleTap) {
+            DOUBLE_TAP_FIT -> engine.fitView(true)
+            DOUBLE_TAP_NONE -> return
+            else -> {
+                val hit = engine.pick(x, y)
+                if (hit != null) engine.focusPoint(hit.point, 1.8f) else engine.fitView(true)
+            }
+        }
         requestRender()
+    }
+
+    /** Orbit from a one-finger drag, honouring the "invert" settings. */
+    fun orbitDrag(dx: Float, dy: Float) {
+        val s = settings.value
+        engine.orbit(if (s.invertX) -dx else dx, if (s.invertY) -dy else dy)
     }
 
     fun onLongPress(x: Float, y: Float) {
@@ -919,6 +980,8 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
             sectionAxis = s.axis,
             sectionValue = s.value,
             sectionFlip = s.flip,
+            bgTop = o.bgTop,
+            bgBottom = o.bgBottom,
         )
     }
 
@@ -992,9 +1055,9 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         return onGl { engine.snapshot(w, h, transparent) }
     }
 
-    fun savePng(uri: Uri) {
+    fun savePng(uri: Uri, transparent: Boolean = false) {
         viewModelScope.launch {
-            val bmp = snapshot()
+            val bmp = snapshot(transparent)
             val ok = bmp != null && withContext(Dispatchers.IO) {
                 runCatching { app.contentResolver.openOutputStream(uri, "wt")?.use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) } ?: false }
                     .getOrDefault(false)
@@ -1097,6 +1160,9 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
 
     companion object {
         private const val TAG = "Meshwise"
+        const val TURNTABLE_RAD_PER_SEC = 0.6f
+        const val DOUBLE_TAP_FIT = 1
+        const val DOUBLE_TAP_NONE = 2
         fun isNearZero(v: Float) = abs(v) < 1e-6f
     }
 }

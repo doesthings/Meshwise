@@ -7,7 +7,11 @@ import java.util.Locale
 import kotlin.math.abs
 
 object Fmt {
-    fun length(mm: Double, units: Units, digits: Int = 2): String {
+    /** Decimal places for measured lengths (Settings → Measurements). */
+    @Volatile
+    var decimals: Int = 2
+
+    fun length(mm: Double, units: Units, digits: Int = decimals): String {
         val v = mm * units.factor
         return "%.${digits}f %s".format(Locale.US, v, units.suffix)
     }

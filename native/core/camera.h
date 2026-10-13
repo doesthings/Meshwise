@@ -20,9 +20,10 @@ struct CameraState {
 
 class Camera {
 public:
-    static constexpr float kFovY = 35.f * kPi / 180.f;
+    static constexpr float kDefaultFovY = 35.f * kPi / 180.f;
 
-    void setViewport(int w, int h) { width_ = w > 0 ? w : 1; height_ = h > 0 ? h : 1; }
+    // An untouched, auto-fitted view is fitted again for the new size.
+    void setViewport(int w, int h);
     int width() const { return width_; }
     int height() const { return height_; }
     float aspect() const { return (float)width_ / (float)height_; }
@@ -58,6 +59,11 @@ public:
     bool turntable() const { return turntable_; }
     void setOrtho(bool ortho);
     void setSensitivity(float s) { sensitivity_ = s; }
+    // Turntable spin in radians per second (negative spins the other way).
+    void setTurntableSpeed(float radPerSec) { turntableSpeed_ = radPerSec; }
+    // Vertical field of view (radians). The distance is rescaled so the framing stays the same.
+    void setFov(float radians);
+    float fovY() const { return fovY_; }
 
     // Advances animations; returns true while anything is still moving.
     bool update(float dt);
@@ -105,6 +111,8 @@ private:
     float yawVel_ = 0.f, pitchVel_ = 0.f;
     bool turntable_ = false;
     float sensitivity_ = 1.f;
+    float turntableSpeed_ = 0.6f;
+    float fovY_ = kDefaultFovY;
     uint64_t version_ = 1;
 };
 

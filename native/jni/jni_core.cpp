@@ -391,6 +391,8 @@ FSV_JNI(void, nativeSetViewInsets)(JNIEnv*, jclass, jlong h, jfloat top, jfloat 
 }
 FSV_JNI(void, nativeSetTurntable)(JNIEnv*, jclass, jlong h, jboolean o) { if (h) E(h)->engine.setTurntable(o == JNI_TRUE); }
 FSV_JNI(void, nativeSetSensitivity)(JNIEnv*, jclass, jlong h, jfloat s) { if (h) E(h)->engine.setSensitivity(s); }
+FSV_JNI(void, nativeSetTurntableSpeed)(JNIEnv*, jclass, jlong h, jfloat s) { if (h) E(h)->engine.setTurntableSpeed(s); }
+FSV_JNI(void, nativeSetFov)(JNIEnv*, jclass, jlong h, jfloat deg) { if (h) E(h)->engine.setFov(deg * kPi / 180.f); }
 
 // out[0..15] view-projection, [16..17] yaw/pitch, [18..19] viewport. Returns a change counter.
 FSV_JNI(jlong, nativeCameraMatrices)(JNIEnv* env, jclass, jlong h, jfloatArray out) {
@@ -469,9 +471,9 @@ FSV_JNI(void, nativeResetParts)(JNIEnv*, jclass, jlong h) { if (h) E(h)->engine.
 // floats: [exposure, scalarMin, scalarMax, threshold, overhangAngle, sectionValue, lineScale]
 FSV_JNI(void, nativeSetOptions)(JNIEnv* env, jclass, jlong h, jintArray ints, jfloatArray floats) {
     if (!h) return;
-    jint iv[15];
+    jint iv[17];
     jfloat fv[7];
-    env->GetIntArrayRegion(ints, 0, 15, iv);
+    env->GetIntArrayRegion(ints, 0, 17, iv);
     env->GetFloatArrayRegion(floats, 0, 7, fv);
     RenderOptions o;
     o.grid = iv[0] != 0;
@@ -489,6 +491,8 @@ FSV_JNI(void, nativeSetOptions)(JNIEnv* env, jclass, jlong h, jintArray ints, jf
     o.hatch = iv[12] != 0;
     o.sectionPlane = iv[13] != 0;
     o.selectColor = argbToRgba((uint32_t)iv[14]);
+    o.bgTop = (uint32_t)iv[15];
+    o.bgBottom = (uint32_t)iv[16];
     o.exposure = fv[0];
     o.scalarMin = fv[1];
     o.scalarMax = fv[2];

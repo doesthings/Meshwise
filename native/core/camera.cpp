@@ -13,6 +13,17 @@ float Camera::wrapAngle(float a) {
     return a;
 }
 
+void Camera::setViewport(int w, int h) {
+    w = w > 0 ? w : 1;
+    h = h > 0 ? h : 1;
+    if (w == width_ && h == height_) return;
+    width_ = w;
+    height_ = h;
+    // The first model is often fitted before the view has its real size.
+    if (autoFit_ && lastFitBox_.valid()) fitBox(lastFitBox_, false);
+    touch();
+}
+
 void Camera::setState(const CameraState& s, bool animate) {
     autoFit_ = false;
     if (animate) {
@@ -34,8 +45,8 @@ void Camera::fit(const Vec3& center, float radius, bool animate) {
     CameraState s = animating_ ? to_ : cur_;
     s.target = center;
     float visH = std::max(1.f, (float)height_ - targetTop_ - targetBottom_);
-    float tanV = std::tan(kFovY * 0.5f) * visH / (float)height_;
-    float tanH = std::tan(kFovY * 0.5f) * aspect();
+    float tanV = std::tan(fovY_ * 0.5f) * visH / (float)height_;
+    float tanH = std::tan(fovY_ * 0.5f) * aspect();
     float fov = 2.f * std::atan(std::min(tanV, tanH));
     s.distance = std::max(1e-4f, radius) / std::sin(fov * 0.5f) * 1.04f;
     setState(s, animate);
@@ -52,8 +63,8 @@ void Camera::fitBox(const Box3& box, bool animate) {
     Vec3 r(cy, sy, 0.f);
     Vec3 u = cross(r, f);
     float visH = std::max(1.f, (float)height_ - targetTop_ - targetBottom_);
-    float tanV = std::tan(kFovY * 0.5f) * visH / (float)height_;
-    float tanH = std::tan(kFovY * 0.5f) * aspect();
+    float tanV = std::tan(fovY_ * 0.5f) * visH / (float)height_;
+    float tanH = std::tan(fovY_ * 0.5f) * aspect();
     const float margin = 1.10f;
     float dist = 0.f;
     float minExtent = 1e-4f;
@@ -92,6 +103,17 @@ void Camera::setOrientation(float yaw, float pitch, bool animate) {
     s.yaw = yaw;
     s.pitch = std::clamp(pitch, -kPi / 2, kPi / 2);
     setState(s, animate);
+}
+
+void Camera::setFov(float radians) {
+    float f = std::clamp(radians, 10.f * kPi / 180.f, 90.f * kPi / 180.f);
+    if (std::fabs(f - fovY_) < 1e-5f) return;
+    const float k = std::tan(fovY_ * 0.5f) / std::tan(f * 0.5f);
+    fovY_ = f;
+    cur_.distance *= k;
+    from_.distance *= k;
+    to_.distance *= k;
+    touch();
 }
 
 void Camera::setView(StandardView v, bool animate) {
@@ -199,7 +221,7 @@ bool Camera::update(float dt) {
         touch();
     }
     if (turntable_ && !animating_) {
-        cur_.yaw = wrapAngle(cur_.yaw + dt * 0.6f);
+        cur_.yaw = wrapAngle(cur_.yaw + dt * turntableSpeed_);
         moving = true;
         touch();
     }
@@ -238,11 +260,11 @@ Mat4 Camera::projection() const {
     float n = nearPlane(), f = farPlane();
     Mat4 p;
     if (cur_.ortho) {
-        float h = cur_.distance * std::tan(kFovY * 0.5f);
+        float h = cur_.distance * std::tan(fovY_ * 0.5f);
         float w = h * aspect();
         p = Mat4::ortho(-w, w, -h, h, n, f);
     } else {
-        p = Mat4::perspective(kFovY, aspect(), n, f);
+        p = Mat4::perspective(fovY_, aspect(), n, f);
     }
     // Lens shift: centre the image in the band not covered by UI.
     const float shift = insetShiftNdc();
@@ -252,13 +274,13 @@ Mat4 Camera::projection() const {
 }
 
 float Camera::worldPerPixel() const {
-    return 2.f * cur_.distance * std::tan(kFovY * 0.5f) / (float)height_;
+    return 2.f * cur_.distance * std::tan(fovY_ * 0.5f) / (float)height_;
 }
 
 void Camera::rayAt(float px, float py, Vec3& origin, Vec3& dir) const {
     float ndcX = (2.f * px / (float)width_) - 1.f;
     float ndcY = 1.f - (2.f * py / (float)height_) - insetShiftNdc();
-    float h = std::tan(kFovY * 0.5f);
+    float h = std::tan(fovY_ * 0.5f);
     if (cur_.ortho) {
         float hh = cur_.distance * h, ww = hh * aspect();
         origin = eye() + right() * (ndcX * ww) + up() * (ndcY * hh) - forward() * (sceneRadius_ * 30.f);
