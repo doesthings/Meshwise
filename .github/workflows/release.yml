@@ -68,7 +68,7 @@ jobs:
       TAG: ${{ needs.version.outputs.tag }}
       TEST_BUILD: ${{ github.event.inputs.test_build == 'true' }}
       # Public fingerprint of the Meshwise release certificate (CN=Meshwise, O=doesthings).
-      EXPECTED_CERT_SHA256: cbefeb0e767375be72d29325f97ec602b4b5d9b8e4eecb9aef3958818bbc5c38
+      EXPECTED_CERT_SHA256: 69fe7fdd7748c2faddbef43c66bc8becf719aaaccdd340de42f7f3eb314b4d11
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -81,7 +81,7 @@ jobs:
       - name: Install NDK
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.31.6" > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.31.6" "build-tools;36.0.0" > /dev/null
 
       - name: Signing key
         env:
@@ -91,7 +91,55 @@ jobs:
           KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            # Tolerate how the secret was pasted: line endings, wrapping, spaces, invisible
+            # characters (BOM, zero-width space) and "-----BEGIN/END ...-----" lines (certutil).
+            # Opening the keystore and the certificate check below still guard the release.
+            CLEAN=$(printf '%s\n' "$KEYSTORE_BASE64" | tr -d '\r' | grep -v -- '-----' | tr -cd 'A-Za-z0-9+/=')
+            DROPPED=$(( $(printf '%s' "$KEYSTORE_BASE64" | wc -c) - ${#CLEAN} ))
+            if [ "$DROPPED" -gt 0 ]; then echo "Ignored $DROPPED stray bytes (whitespace or invisible characters) in SIGNING_KEYSTORE_BASE64."; fi
+            if ! printf '%s' "$CLEAN" | base64 -d > "$RUNNER_TEMP/release.jks" 2>/dev/null; then
+              echo "::error::SIGNING_KEYSTORE_BASE64 is not valid base64 (${#CLEAN} base64 characters). Re-create it with 'base64 -w0 release.jks' and paste it again."
+              exit 1
+            fi
+            # Same for the other secrets: drop a BOM, zero-width spaces, line breaks and
+            # surrounding spaces.
+            tidy() { printf '%s' "$1" | sed -e 's/\xef\xbb\xbf//g; s/\xe2\x80\x8b//g' | tr -d '\r\n' | sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
+            STORE_PASSWORD=$(tidy "$STORE_PASSWORD"); KEY_PASSWORD=$(tidy "$KEY_PASSWORD"); KEY_ALIAS=$(tidy "$KEY_ALIAS")
+            KS="$RUNNER_TEMP/release.jks"
+            if ! keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" > /dev/null 2>&1; then
+              if [ -n "$KEY_PASSWORD" ] && keytool -list -keystore "$KS" -storepass "$KEY_PASSWORD" > /dev/null 2>&1; then
+                echo "::warning::SIGNING_KEY_PASSWORD opens the keystore but SIGNING_STORE_PASSWORD does not; the two look swapped. Using it for both."
+                STORE_PASSWORD="$KEY_PASSWORD"
+              else
+                WHY=$(keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" 2>&1 | grep -i 'keytool error' | head -1)
+                echo "::error::The keystore decoded ($(wc -c < "$KS") bytes, $(file -b "$KS" | cut -c1-40)) but SIGNING_STORE_PASSWORD does not open it. keytool says: $WHY"
+                exit 1
+              fi
+            fi
+            ALIASES=$(keytool -list -v -keystore "$KS" -storepass "$STORE_PASSWORD" 2>/dev/null | sed -n 's/^Alias name: //p')
+            if ! printf '%s\n' "$ALIASES" | grep -qixF -- "$KEY_ALIAS"; then
+              if [ "$(printf '%s\n' "$ALIASES" | grep -c .)" -eq 1 ]; then
+                echo "::warning::SIGNING_KEY_ALIAS does not match the key in the keystore; using its only key."
+                KEY_ALIAS="$ALIASES"
+              else
+                echo "::error::SIGNING_KEY_ALIAS does not match any of the $(printf '%s\n' "$ALIASES" | grep -c .) keys in the keystore."
+                exit 1
+              fi
+            fi
+            # The key password must unlock the private key. In a PKCS12 keystore it is always
+            # the store password (and keytool ignores -keypass), so use that.
+            if keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" 2>/dev/null | grep -qi '^Keystore type: PKCS12'; then
+              if [ "$KEY_PASSWORD" != "$STORE_PASSWORD" ]; then echo "PKCS12 keystore: signing with the store password as the key password."; fi
+              KEY_PASSWORD="$STORE_PASSWORD"
+            elif ! keytool -certreq -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" -keypass "$KEY_PASSWORD" > /dev/null 2>&1; then
+              if keytool -certreq -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" -keypass "$STORE_PASSWORD" > /dev/null 2>&1; then
+                echo "::warning::SIGNING_KEY_PASSWORD does not unlock the key, but the store password does; using that."
+                KEY_PASSWORD="$STORE_PASSWORD"
+              else
+                echo "::error::SIGNING_KEY_PASSWORD does not unlock the key. Check that secret."
+                exit 1
+              fi
+            fi
             {
               echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks"
               echo "SIGNING_STORE_PASSWORD=$STORE_PASSWORD"
@@ -120,10 +168,17 @@ jobs:
 
       - name: Verify signatures
         run: |
-          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          # A pinned apksigner: the newest one on the runner printed no certificate.
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           for f in dist/*.apk; do
-            CERT=$("$APKSIGNER" verify --print-certs "$f" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-            echo "$(basename "$f"): $CERT"
+            OUT=$("$APKSIGNER" verify --print-certs "$f" 2>&1) || { echo "$OUT"; echo "::error::$(basename "$f") does not verify."; exit 1; }
+            CERT=$(printf '%s\n' "$OUT" | grep -oiE 'certificate SHA-256 digest: [0-9a-f]{64}' | head -1 | awk '{print tolower($NF)}')
+            echo "$(basename "$f"): ${CERT:-<none>}"
+            if [ -z "$CERT" ]; then
+              echo "$OUT"
+              echo "::error::Could not read the signing certificate of $(basename "$f")."
+              exit 1
+            fi
             if [ "$CERT" != "$EXPECTED_CERT_SHA256" ] && [ "$TEST_BUILD" != "true" ]; then
               echo "::error::$(basename "$f") is not signed with the Meshwise release key."
               exit 1
@@ -156,7 +211,7 @@ jobs:
           Every APK is signed with the Meshwise release certificate. You can check it with
           `apksigner verify --print-certs <file>.apk`. The SHA-256 must be:
           ```
-          CB:EF:EB:0E:76:73:75:BE:72:D2:93:25:F9:7E:C6:02:B4:B5:D9:B8:E4:EE:CB:9A:EF:39:58:81:8B:BC:5C:38
+          69:FE:7F:DD:77:48:C2:FA:DD:BE:F4:3C:66:BC:8B:EC:F7:19:AA:AC:CD:D3:40:DE:42:F7:F3:EB:31:4B:4D:11
           ```
           File checksums are in `SHA256SUMS.txt`.
           NOTES

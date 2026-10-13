@@ -1,12 +1,12 @@
 name: Bug report
-description: Something crashes, looks wrong or does not open
+description: Something crashes, looks wrong or doesn't open
 labels: [bug]
 body:
   - type: textarea
     id: what
     attributes:
       label: What happened?
-      description: What did you do, what did you expect, and what happened instead?
+      description: What did you do, what did you expect, and what happened instead? Screenshots help.
     validations:
       required: true
   - type: input
@@ -26,4 +26,4 @@ body:
     id: file
     attributes:
       label: Model file
-      description: If a specific file is affected, attach it (zip it first) or link to it if you can share it.
+      description: If one file is affected, attach it (zip it first) or link to it, if you can share it.

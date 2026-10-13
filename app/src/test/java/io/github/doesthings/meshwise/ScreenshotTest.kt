@@ -11,6 +11,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import io.github.doesthings.meshwise.TestSupport.awaitUntil
 import io.github.doesthings.meshwise.data.ModelSource
 import io.github.doesthings.meshwise.data.RecentFile
+import io.github.doesthings.meshwise.data.UPDATES_OFF
 import io.github.doesthings.meshwise.data.sha1
 import io.github.doesthings.meshwise.engine.MaterialPreset
 import io.github.doesthings.meshwise.engine.Vec3
@@ -53,6 +54,7 @@ class ScreenshotTest {
     fun setUp() {
         assumeTrue(TestSupport.nativeAvailable())
         app.recents.clear()
+        app.settings.update { it.copy(updateChecks = UPDATES_OFF) }
         vm = ViewerViewModel(app)
         vm.density = 3f
         vm.engine.onSurfaceChanged(1080, 2400)

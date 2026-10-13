@@ -16,13 +16,14 @@ Engine::Engine() {
 }
 
 void Engine::onSurfaceCreated() {
-    std::lock_guard<std::mutex> lk(mu_);
+    std::lock_guard<std::mutex> gl(glMu_);
     // A new context: previous GL names are gone.
     renderer_.invalidate();
     glReady_ = renderer_.init();
+    if (!glReady_) FSV_LOGE("renderer init failed");
+    std::lock_guard<std::mutex> lk(mu_);
     modelDirty_ = true;
     hadFrame_ = false;
-    if (!glReady_) FSV_LOGE("renderer init failed");
 }
 
 void Engine::onSurfaceChanged(int w, int h) {
@@ -95,79 +96,123 @@ FrameParams Engine::frameParamsLocked(const Camera& cam) const {
     return f;
 }
 
-void Engine::syncGpuLocked() {
-    if (modelDirty_) {
-        if (model_) renderer_.uploadModel(*model_);
+// Takes what changed from the scene under mu_, then uploads it holding only glMu_. The
+// first upload of a big model can take a while; UI calls (touch, setModel, analysis
+// results) must not wait for it. Everything is copied in one critical section, so the
+// GPU always gets a consistent model/parts pair; a change made during the upload just
+// marks the scene dirty again for the next frame.
+void Engine::syncGpu() {
+    std::shared_ptr<const Model> model;
+    std::shared_ptr<const Topology> topo;
+    std::shared_ptr<const std::vector<float>> scalars;
+    std::vector<PartGpu> parts;
+    bool uploadModel, uploadTopo, uploadScalars, uploadParts;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        uploadModel = modelDirty_;
+        if (modelDirty_) topoDirty_ = scalarsDirty_ = partsDirty_ = true;
+        uploadTopo = topoDirty_;
+        uploadScalars = scalarsDirty_;
+        uploadParts = partsDirty_;
+        modelDirty_ = topoDirty_ = scalarsDirty_ = partsDirty_ = false;
+        model = model_;
+        topo = topo_;
+        scalars = scalars_;
+        if (uploadParts) buildPartGpu(parts);
+    }
+    if (uploadModel) {
+        if (uploadHook_) uploadHook_();
+        if (model) renderer_.uploadModel(*model);
         else renderer_.clearModel();
-        modelDirty_ = false;
-        topoDirty_ = scalarsDirty_ = partsDirty_ = true;
     }
-    if (topoDirty_) {
+    if (uploadTopo && model) {
         static const std::vector<uint32_t> empty;
-        if (model_) {
-            const std::vector<uint32_t>& feature = topo_ ? topo_->featureEdges : (model_->cadEdges.empty() ? empty : model_->cadEdges);
-            renderer_.uploadLines(LineSet::Feature, feature);
-            renderer_.uploadLines(LineSet::Wire, topo_ ? topo_->allEdges : empty);
-            renderer_.uploadLines(LineSet::Open, topo_ ? topo_->openEdges : empty);
-            renderer_.uploadLines(LineSet::NonManifold, topo_ ? topo_->nonManifoldEdges : empty);
-        }
-        topoDirty_ = false;
+        const std::vector<uint32_t>& feature = topo ? topo->featureEdges : model->cadEdges;
+        renderer_.uploadLines(LineSet::Feature, feature);
+        renderer_.uploadLines(LineSet::Wire, topo ? topo->allEdges : empty);
+        renderer_.uploadLines(LineSet::Open, topo ? topo->openEdges : empty);
+        renderer_.uploadLines(LineSet::NonManifold, topo ? topo->nonManifoldEdges : empty);
     }
-    if (scalarsDirty_) {
-        if (scalars_ && model_ && scalars_->size() == model_->vertexCount()) renderer_.uploadScalars(*scalars_);
+    if (uploadScalars) {
+        if (scalars && model && scalars->size() == model->vertexCount()) renderer_.uploadScalars(*scalars);
         else renderer_.clearScalars();
-        scalarsDirty_ = false;
     }
-    if (partsDirty_) {
-        std::vector<PartGpu> gpu;
-        buildPartGpu(gpu);
-        renderer_.updateParts(gpu);
-        partsDirty_ = false;
-    }
+    if (uploadParts) renderer_.updateParts(parts);
 }
 
 bool Engine::drawFrame() {
-    std::lock_guard<std::mutex> lk(mu_);
-    auto now = std::chrono::steady_clock::now();
-    float dt = hadFrame_ ? std::chrono::duration<float>(now - lastFrame_).count() : 0.f;
-    lastFrame_ = now;
-    hadFrame_ = true;
-    bool moving = camera_.update(dt);
+    std::lock_guard<std::mutex> gl(glMu_);
+    bool moving;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        auto now = std::chrono::steady_clock::now();
+        float dt = hadFrame_ ? std::chrono::duration<float>(now - lastFrame_).count() : 0.f;
+        lastFrame_ = now;
+        hadFrame_ = true;
+        moving = camera_.update(dt);
+    }
     if (!glReady_) return false;
-    syncGpuLocked();
-    renderer_.render(frameParamsLocked(camera_), options_, 0);
+    syncGpu();
+    FrameParams f;
+    RenderOptions o;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        f = frameParamsLocked(camera_);
+        o = options_;
+        // Changed while uploading: draw again soon with the new state.
+        moving = moving || modelDirty_ || topoDirty_ || scalarsDirty_ || partsDirty_;
+    }
+    renderer_.render(f, o, 0);
     return moving;
 }
 
 bool Engine::snapshot(int w, int h, bool transparent, std::vector<uint8_t>& rgba) {
-    std::lock_guard<std::mutex> lk(mu_);
+    std::lock_guard<std::mutex> gl(glMu_);
     if (!glReady_) return false;
-    syncGpuLocked();
-    Camera cam = camera_;
-    cam.setViewport(w, h);
-    RenderOptions o = options_;
-    o.transparentBackground = transparent;
-    o.lineScale = options_.lineScale * (float)h / (float)std::max(1, camera_.height());
-    return renderer_.renderToPixels(frameParamsLocked(cam), o, w, h, rgba);
+    syncGpu();
+    FrameParams f;
+    RenderOptions o;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        Camera cam = camera_;
+        cam.setViewport(w, h);
+        f = frameParamsLocked(cam);
+        o = options_;
+        o.transparentBackground = transparent;
+        o.lineScale = options_.lineScale * (float)h / (float)std::max(1, camera_.height());
+    }
+    return renderer_.renderToPixels(f, o, w, h, rgba);
 }
 
 bool Engine::thumbnail(int size, std::vector<uint8_t>& rgba) {
-    std::lock_guard<std::mutex> lk(mu_);
-    if (!glReady_ || !model_) return false;
-    syncGpuLocked();
-    Camera cam;
-    cam.setViewport(size, size);
-    Box3 b = sceneBoundsLocked(true);
-    cam.setScene(b.center(), b.radius());
-    cam.setView(StandardView::Iso, false);
-    cam.fitBox(b, false);
-    RenderOptions o = options_;
+    std::lock_guard<std::mutex> gl(glMu_);
+    if (!glReady_) return false;
+    syncGpu();
+    FrameParams f;
+    RenderOptions o;
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        if (!model_) return false;
+        Camera cam;
+        cam.setViewport(size, size);
+        Box3 b = sceneBoundsLocked(true);
+        cam.setScene(b.center(), b.radius());
+        cam.setView(StandardView::Iso, false);
+        cam.fitBox(b, false);
+        f = frameParamsLocked(cam);
+        o = options_;
+    }
     o.section = false;
     o.mode = ShadingMode::Shaded;
     o.openEdges = false;
     o.grid = true;
     o.lineScale = 1.f;
-    return renderer_.renderToPixels(frameParamsLocked(cam), o, size, size, rgba);
+    return renderer_.renderToPixels(f, o, size, size, rgba);
+}
+
+void Engine::setUploadHookForTests(std::function<void()> hook) {
+    std::lock_guard<std::mutex> gl(glMu_);
+    uploadHook_ = std::move(hook);
 }
 
 void Engine::setModel(std::shared_ptr<const Model> model, bool resetView) {

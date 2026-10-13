@@ -1,9 +1,14 @@
 // Engine: owns the scene (model + analysis data + per-part state), the camera and the
 // renderer. Public methods are thread-safe; GL work happens in the draw/snapshot calls,
 // which must run on the GL thread.
+//
+// Locking: mu_ guards the scene and camera and is only held briefly. glMu_ guards the
+// renderer and is held for a whole GL call, including slow GPU uploads. Lock order is
+// glMu_ before mu_; nothing takes glMu_ while holding mu_.
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -113,9 +118,12 @@ public:
 
     uint64_t sceneVersion() const;
 
+    // Test hook: runs on the GL thread right before a model upload, with only glMu_ held.
+    void setUploadHookForTests(std::function<void()> hook);
+
 private:
     void markPartsDirty() { partsDirty_ = true; ++sceneVersion_; }
-    void syncGpuLocked();
+    void syncGpu();  // GL thread, glMu_ held, mu_ not held
     Box3 sceneBoundsLocked(bool visibleOnly) const;
     Vec3 partOffsetLocked(int part) const;
     void buildPartGpu(std::vector<PartGpu>& out) const;
@@ -124,7 +132,13 @@ private:
 
     mutable std::mutex mu_;
     Camera camera_;
+
+    // GL thread state, guarded by glMu_.
+    std::mutex glMu_;
     Renderer renderer_;
+    bool glReady_ = false;
+    std::function<void()> uploadHook_;
+
     std::shared_ptr<const Model> model_;
     std::shared_ptr<const Topology> topo_;
     std::shared_ptr<const ModelBVH> bvh_;
@@ -133,7 +147,6 @@ private:
     float explode_ = 0.f;
     RenderOptions options_;
     bool modelDirty_ = false, topoDirty_ = false, scalarsDirty_ = false, partsDirty_ = false;
-    bool glReady_ = false;
     uint64_t sceneVersion_ = 1;
     std::chrono::steady_clock::time_point lastFrame_;
     bool hadFrame_ = false;

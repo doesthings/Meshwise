@@ -132,6 +132,9 @@ android {
                     test.systemProperty("robolectric.dependency.repo.id", "mirror")
                 }
                 test.maxHeapSize = "3g"
+                // The JNI library can only be loaded by one classloader per JVM, and test classes
+                // with different Robolectric configs get different classloaders.
+                test.forkEvery = 1
             }
         }
     }

@@ -70,8 +70,8 @@ else()
   add_executable(fsv_render host/render_main.cpp host/egl_context.cpp host/png.cpp)
   target_link_libraries(fsv_render PRIVATE fsvcore ${EGL_LIB})
 
-  add_executable(fsv_tests tests/tests.cpp)
-  target_link_libraries(fsv_tests PRIVATE fsvcore)
+  add_executable(fsv_tests tests/tests.cpp host/egl_context.cpp)
+  target_link_libraries(fsv_tests PRIVATE fsvcore ${EGL_LIB})
 
   add_executable(fsv_bench host/bench.cpp)
   target_link_libraries(fsv_bench PRIVATE fsvcore)

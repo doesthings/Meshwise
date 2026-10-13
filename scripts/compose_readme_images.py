@@ -3,7 +3,7 @@
 
 Input:  build/screenshots/*.png  (1080x2400, from the Robolectric screenshot tests)
 Output: docs/screenshots/*.png      (rounded phone-style frames, 540 px wide)
-        docs/images/hero.png        (banner with a selection of screens)
+        docs/images/hero.png        (banner with the app icon and a selection of screens)
 
 Requires Pillow (pip install pillow).
 """
@@ -96,13 +96,19 @@ def main():
         gd.ellipse([1300, -300, 2600, 700], fill=(208, 188, 255, 60))
         gd.ellipse([-300, 600, 900, 1500], fill=(255, 109, 0, 40))
         banner.alpha_composite(glow.filter(ImageFilter.GaussianBlur(120)))
-        d.text((110, 150), "Meshwise", font=font(118, True), fill=(240, 236, 248))
-        d.text((114, 300), "Fast, native 3D model viewer for Android", font=font(46), fill=(208, 188, 255))
-        lines = ["STL · OBJ · 3MF · PLY · STEP · IGES · BREP · ZIP",
+        title_x = 110
+        icon_path = os.path.join(IMAGES, "icon.png")  # from scripts/make_icon.py
+        if os.path.exists(icon_path):
+            icon = Image.open(icon_path).convert("RGBA").resize((150, 150), Image.LANCZOS)
+            banner.alpha_composite(icon, (110, 152))
+            title_x = 290
+        d.text((title_x, 150), "Meshwise", font=font(118, True), fill=(240, 236, 248))
+        d.text((114, 340), "Free, open-source 3D model viewer for Android", font=font(43), fill=(208, 188, 255))
+        lines = ["STL · OBJ · 3MF · PLY · OFF · STEP · IGES · BREP · ZIP",
                  "Section caps · Wall thickness · Measure · Explode",
                  "Weight · Materials · Mesh check · Export"]
         for i, line in enumerate(lines):
-            d.text((114, 420 + i * 64), line, font=font(36), fill=(200, 204, 210))
+            d.text((114, 450 + i * 64), line, font=font(36), fill=(200, 204, 210))
         x = 1180
         thumbs = picks[:3]
         for i, n in enumerate(thumbs):

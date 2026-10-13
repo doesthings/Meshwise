@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.doesthings.meshwise.BuildConfig
+import io.github.doesthings.meshwise.data.UPDATES_ON
 import io.github.doesthings.meshwise.R
 import io.github.doesthings.meshwise.data.Units
 import io.github.doesthings.meshwise.ui.components.REPO_URL
@@ -121,6 +123,12 @@ fun SettingsScreen(vm: ViewerViewModel) {
                 LinkRow(Icons.Rounded.Info, stringResource(R.string.clear_cache)) { vm.clearCache() }
                 LinkRow(Icons.Rounded.Info, stringResource(R.string.clear_recents)) { vm.clearRecents() }
             }
+            SectionLabel(stringResource(R.string.updates))
+            Card {
+                SwitchRow(stringResource(R.string.update_checks), s.updateChecks == UPDATES_ON, { v -> vm.setUpdateChecks(v) })
+                Text(stringResource(R.string.update_checks_summary), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                LinkRow(Icons.Rounded.Refresh, stringResource(R.string.update_check_now)) { vm.checkForUpdates(manual = true) }
+            }
             SectionLabel(stringResource(R.string.support))
             SupportCard()
             SectionLabel(stringResource(R.string.about))
@@ -154,8 +162,9 @@ fun AboutScreen(vm: ViewerViewModel) {
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(stringResource(R.string.version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    "A fast, native 3D model viewer for Android: OpenGL ES 3 rendering, a multi-threaded C++ mesh pipeline and an " +
-                        "embedded Open CASCADE kernel for STEP and IGES.",
+                    "A fast, free and open-source 3D model viewer for 3D printing and CAD files. No ads, no account and no " +
+                        "tracking; your files never leave your phone. Built on a C++ core with OpenGL ES 3, and Open CASCADE " +
+                        "for STEP and IGES.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 LinkRow(Icons.Rounded.Code, stringResource(R.string.source_code)) { openUrl(context, REPO_URL) }

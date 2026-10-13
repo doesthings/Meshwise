@@ -1,29 +1,33 @@
 # Releasing
 
-Releases are built by [`.github/workflows/release.yml`](../.github/workflows/release.yml).
-It builds Open CASCADE for every ABI (cached after the first run), assembles the release APKs,
-checks that they are signed with the Meshwise key and publishes them, with SHA-256 checksums,
-on the repository's **Releases** page.
+The [Release workflow](../.github/workflows/release.yml) does all the work:
 
-To publish a new version:
+1. builds Open CASCADE for every ABI (cached after the first run),
+2. builds the release APKs,
+3. checks that every APK is signed with the Meshwise key,
+4. publishes the APKs and `SHA256SUMS.txt` on the **Releases** page.
 
-1. Update `CHANGELOG.md` and add `docs/release-notes/vX.Y.Z.md` (it becomes the release text).
-2. Change the version in the `VERSION` file and push to `main`.
+## Publish a new version
 
-The **Release** workflow notices the new version, builds and verifies the APKs and publishes
-release `vX.Y.Z` (creating the tag). Pushing a `vX.Y.Z` tag or running the workflow by hand
-from the Actions tab works too.
+1. Add a `CHANGELOG.md` entry and `docs/release-notes/vX.Y.Z.md` (this becomes the release text).
+2. Put the new version in the `VERSION` file.
+3. Push to `main`.
 
-The version code is derived from the version (`major*10000 + minor*100 + patch`, times ten
-plus an ABI digit for the split APKs), so every release installs over the previous one.
+The workflow sees the new version and publishes release `vX.Y.Z`, creating the tag. If that tag
+already exists, it does nothing. Pushing a `vX.Y.Z` tag, or running the workflow by hand from
+the Actions tab, also works.
+
+The version code comes from the version (`major*10000 + minor*100 + patch`, times ten, plus an
+ABI digit for the split APKs), so each release installs over the previous one.
 
 ## Signing key (one-time setup)
 
-A release is only published when every APK is signed with the Meshwise release key: the
-workflow checks the certificate against `EXPECTED_CERT_SHA256` in `release.yml` and fails
-otherwise, including when the signing secrets are missing. For a quick unsigned check, run the
-workflow manually with **Test build** ticked; the APKs are then attached to the run as an
-artifact and nothing is published.
+A release is only published when every APK is signed with the Meshwise release key. The
+workflow compares each certificate with `EXPECTED_CERT_SHA256` in `release.yml` and fails if
+any differs, or if the signing secrets are missing.
+
+To try a build without publishing, run the workflow by hand with **Test build** ticked. The APKs
+are then attached to the run as an artifact.
 
 The project's key already exists (owner's private backup). To create a key for a fork:
 
@@ -42,9 +46,9 @@ Then add these repository secrets under **Settings → Secrets and variables →
 | `SIGNING_KEY_ALIAS` | `meshwise` (or the alias you chose) |
 | `SIGNING_KEY_PASSWORD` | key password |
 
-Keep `release.jks` and its passwords somewhere safe and **never commit them**: losing the key
-means users cannot update, and leaking it lets anyone publish updates in your name. A fork
-with its own key must also update `EXPECTED_CERT_SHA256` in `release.yml`.
+Keep `release.jks` and its passwords somewhere safe and **never commit them**. If you lose the
+key, users can't update. If it leaks, anyone can publish updates in your name. A fork with its
+own key must also change `EXPECTED_CERT_SHA256` in `release.yml`.
 
 ## Local release builds
 
@@ -57,5 +61,4 @@ keyAlias=meshwise
 keyPassword=...
 ```
 
-and run `./gradlew assembleRelease -Pfsv.versionName=1.1.0`. Without the file the release
-build falls back to the debug key.
+Then run `./gradlew assembleRelease`. Without the file, the release build uses the debug key.
