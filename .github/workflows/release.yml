@@ -68,7 +68,7 @@ jobs:
       TAG: ${{ needs.version.outputs.tag }}
       TEST_BUILD: ${{ github.event.inputs.test_build == 'true' }}
       # Public fingerprint of the Meshwise release certificate (CN=Meshwise, O=doesthings).
-      EXPECTED_CERT_SHA256: cbefeb0e767375be72d29325f97ec602b4b5d9b8e4eecb9aef3958818bbc5c38
+      EXPECTED_CERT_SHA256: 69fe7fdd7748c2faddbef43c66bc8becf719aaaccdd340de42f7f3eb314b4d11
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -204,7 +204,7 @@ jobs:
           Every APK is signed with the Meshwise release certificate. You can check it with
           `apksigner verify --print-certs <file>.apk`. The SHA-256 must be:
           ```
-          CB:EF:EB:0E:76:73:75:BE:72:D2:93:25:F9:7E:C6:02:B4:B5:D9:B8:E4:EE:CB:9A:EF:39:58:81:8B:BC:5C:38
+          69:FE:7F:DD:77:48:C2:FA:DD:BE:F4:3C:66:BC:8B:EC:F7:19:AA:AC:CD:D3:40:DE:42:F7:F3:EB:31:4B:4D:11
           ```
           File checksums are in `SHA256SUMS.txt`.
           NOTES

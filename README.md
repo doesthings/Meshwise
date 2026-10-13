@@ -42,7 +42,7 @@ today has both.
 Every release is signed with the same Meshwise certificate, so a new version installs over the
 old one. If you turn on the optional update check, the app tells you when a new version is out
 (see [Privacy](#privacy)). To check a download, run `apksigner verify --print-certs` on it. The SHA-256 must be
-`CB:EF:EB:0E:76:73:75:BE:72:D2:93:25:F9:7E:C6:02:B4:B5:D9:B8:E4:EE:CB:9A:EF:39:58:81:8B:BC:5C:38`.
+`69:FE:7F:DD:77:48:C2:FA:DD:BE:F4:3C:66:BC:8B:EC:F7:19:AA:AC:CD:D3:40:DE:42:F7:F3:EB:31:4B:4D:11`.
 
 ## Screenshots
 
