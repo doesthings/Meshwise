@@ -101,9 +101,38 @@ jobs:
               echo "::error::SIGNING_KEYSTORE_BASE64 is not valid base64 (${#CLEAN} base64 characters). Re-create it with 'base64 -w0 release.jks' and paste it again."
               exit 1
             fi
-            if ! keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1; then
-              echo "::error::The keystore decoded ($(wc -c < "$RUNNER_TEMP/release.jks") bytes) but could not be opened with SIGNING_STORE_PASSWORD and SIGNING_KEY_ALIAS. Check those two secrets (keytool -list -keystore release.jks shows the alias)."
+            # Same for the other secrets: drop a BOM, zero-width spaces, line breaks and
+            # surrounding spaces.
+            tidy() { printf '%s' "$1" | sed -e 's/\xef\xbb\xbf//g; s/\xe2\x80\x8b//g' | tr -d '\r\n' | sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
+            STORE_PASSWORD=$(tidy "$STORE_PASSWORD"); KEY_PASSWORD=$(tidy "$KEY_PASSWORD"); KEY_ALIAS=$(tidy "$KEY_ALIAS")
+            KS="$RUNNER_TEMP/release.jks"
+            if ! keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" > /dev/null 2>&1; then
+              echo "::error::The keystore decoded ($(wc -c < "$KS") bytes) but SIGNING_STORE_PASSWORD does not open it. Check that secret."
               exit 1
+            fi
+            ALIASES=$(keytool -list -v -keystore "$KS" -storepass "$STORE_PASSWORD" 2>/dev/null | sed -n 's/^Alias name: //p')
+            if ! printf '%s\n' "$ALIASES" | grep -qixF -- "$KEY_ALIAS"; then
+              if [ "$(printf '%s\n' "$ALIASES" | grep -c .)" -eq 1 ]; then
+                echo "::warning::SIGNING_KEY_ALIAS does not match the key in the keystore; using its only key."
+                KEY_ALIAS="$ALIASES"
+              else
+                echo "::error::SIGNING_KEY_ALIAS does not match any of the $(printf '%s\n' "$ALIASES" | grep -c .) keys in the keystore."
+                exit 1
+              fi
+            fi
+            # The key password must unlock the private key. In a PKCS12 keystore it is always
+            # the store password (and keytool ignores -keypass), so use that.
+            if keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" 2>/dev/null | grep -qi '^Keystore type: PKCS12'; then
+              if [ "$KEY_PASSWORD" != "$STORE_PASSWORD" ]; then echo "PKCS12 keystore: signing with the store password as the key password."; fi
+              KEY_PASSWORD="$STORE_PASSWORD"
+            elif ! keytool -certreq -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" -keypass "$KEY_PASSWORD" > /dev/null 2>&1; then
+              if keytool -certreq -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" -keypass "$STORE_PASSWORD" > /dev/null 2>&1; then
+                echo "::warning::SIGNING_KEY_PASSWORD does not unlock the key, but the store password does; using that."
+                KEY_PASSWORD="$STORE_PASSWORD"
+              else
+                echo "::error::SIGNING_KEY_PASSWORD does not unlock the key. Check that secret."
+                exit 1
+              fi
             fi
             {
               echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks"
