@@ -256,6 +256,10 @@ FSV_JNI(jintArray, nativeModelPartColors)(JNIEnv* env, jclass, jlong m) {
 }
 
 FSV_JNI(void, nativeSetModel)(JNIEnv*, jclass, jlong h, jlong m, jboolean resetView) {
+    if (!h) {
+        delete M(m);  // the engine is gone; don't leak the model
+        return;
+    }
     EngineHandle* eh = E(h);
     eh->setTopology(nullptr);
     eh->setThickness(nullptr);
@@ -272,6 +276,7 @@ FSV_JNI(void, nativeSetModel)(JNIEnv*, jclass, jlong h, jlong m, jboolean resetV
 // ---------------------------------------------------------------- analysis
 
 FSV_JNI(jboolean, nativeBuildAnalysis)(JNIEnv* env, jclass, jlong h, jobject progress) {
+    if (!h) return JNI_FALSE;
     return guarded(env, [&]() -> jboolean {
         EngineHandle* eh = E(h);
         auto model = eh->engine.model();
@@ -289,6 +294,7 @@ FSV_JNI(jboolean, nativeBuildAnalysis)(JNIEnv* env, jclass, jlong h, jobject pro
 
 // [openEdges, nonManifoldEdges, shells, flippedEdges, degenerateFaces, edges, droppedFaces]
 FSV_JNI(jlongArray, nativeMeshCheck)(JNIEnv* env, jclass, jlong h) {
+    if (!h) return nullptr;
     EngineHandle* eh = E(h);
     auto model = eh->engine.model();
     auto topo = eh->topology();
@@ -303,6 +309,7 @@ FSV_JNI(jlongArray, nativeMeshCheck)(JNIEnv* env, jclass, jlong h) {
 
 // [min, max, p05, p95, spotCount, (x, y, z, nx, ny, nz, value, part) * spotCount]
 FSV_JNI(jfloatArray, nativeComputeThickness)(JNIEnv* env, jclass, jlong h, jobject progress) {
+    if (!h) return nullptr;
     return guarded(env, [&]() -> jfloatArray {
         EngineHandle* eh = E(h);
         auto model = eh->engine.model();
@@ -329,11 +336,13 @@ FSV_JNI(jfloatArray, nativeComputeThickness)(JNIEnv* env, jclass, jlong h, jobje
 }
 
 FSV_JNI(void, nativeClearScalars)(JNIEnv*, jclass, jlong h) {
+    if (!h) return;
     E(h)->setThickness(nullptr);
     E(h)->engine.setScalars(nullptr);
 }
 
 FSV_JNI(jdoubleArray, nativeOverhang)(JNIEnv* env, jclass, jlong h, jfloat angle) {
+    if (!h) return nullptr;
     auto model = E(h)->engine.model();
     if (!model) return nullptr;
     std::vector<uint8_t> vis;
@@ -359,26 +368,29 @@ FSV_JNI(jfloatArray, nativeCircle3)(JNIEnv* env, jclass, jfloatArray pts) {
 
 // ---------------------------------------------------------------- camera
 
-FSV_JNI(void, nativeOrbit)(JNIEnv*, jclass, jlong h, jfloat dx, jfloat dy) { E(h)->engine.orbit(dx, dy); }
-FSV_JNI(void, nativePan)(JNIEnv*, jclass, jlong h, jfloat dx, jfloat dy) { E(h)->engine.pan(dx, dy); }
-FSV_JNI(void, nativeZoom)(JNIEnv*, jclass, jlong h, jfloat f, jfloat x, jfloat y) { E(h)->engine.zoom(f, x, y); }
-FSV_JNI(void, nativeFling)(JNIEnv*, jclass, jlong h, jfloat vx, jfloat vy) { E(h)->engine.fling(vx, vy); }
-FSV_JNI(void, nativeStopMotion)(JNIEnv*, jclass, jlong h) { E(h)->engine.stopMotion(); }
-FSV_JNI(void, nativeSetStandardView)(JNIEnv*, jclass, jlong h, jint v, jboolean a) { E(h)->engine.setStandardView(v, a == JNI_TRUE); }
+FSV_JNI(void, nativeOrbit)(JNIEnv*, jclass, jlong h, jfloat dx, jfloat dy) { if (h) E(h)->engine.orbit(dx, dy); }
+FSV_JNI(void, nativePan)(JNIEnv*, jclass, jlong h, jfloat dx, jfloat dy) { if (h) E(h)->engine.pan(dx, dy); }
+FSV_JNI(void, nativeZoom)(JNIEnv*, jclass, jlong h, jfloat f, jfloat x, jfloat y) { if (h) E(h)->engine.zoom(f, x, y); }
+FSV_JNI(void, nativeFling)(JNIEnv*, jclass, jlong h, jfloat vx, jfloat vy) { if (h) E(h)->engine.fling(vx, vy); }
+FSV_JNI(void, nativeStopMotion)(JNIEnv*, jclass, jlong h) { if (h) E(h)->engine.stopMotion(); }
+FSV_JNI(void, nativeSetStandardView)(JNIEnv*, jclass, jlong h, jint v, jboolean a) { if (h) E(h)->engine.setStandardView(v, a == JNI_TRUE); }
 FSV_JNI(void, nativeSetOrientation)(JNIEnv*, jclass, jlong h, jfloat yaw, jfloat pitch, jboolean a) {
+    if (!h) return;
     E(h)->engine.setOrientation(yaw, pitch, a == JNI_TRUE);
 }
-FSV_JNI(void, nativeFitView)(JNIEnv*, jclass, jlong h, jboolean a) { E(h)->engine.fitView(a == JNI_TRUE); }
-FSV_JNI(void, nativeFocusPart)(JNIEnv*, jclass, jlong h, jint p, jboolean a) { E(h)->engine.focusPart(p, a == JNI_TRUE); }
+FSV_JNI(void, nativeFitView)(JNIEnv*, jclass, jlong h, jboolean a) { if (h) E(h)->engine.fitView(a == JNI_TRUE); }
+FSV_JNI(void, nativeFocusPart)(JNIEnv*, jclass, jlong h, jint p, jboolean a) { if (h) E(h)->engine.focusPart(p, a == JNI_TRUE); }
 FSV_JNI(void, nativeFocusPoint)(JNIEnv*, jclass, jlong h, jfloat x, jfloat y, jfloat z, jfloat zoom) {
+    if (!h) return;
     E(h)->engine.focusPoint(Vec3(x, y, z), zoom);
 }
-FSV_JNI(void, nativeSetOrtho)(JNIEnv*, jclass, jlong h, jboolean o) { E(h)->engine.setOrtho(o == JNI_TRUE); }
+FSV_JNI(void, nativeSetOrtho)(JNIEnv*, jclass, jlong h, jboolean o) { if (h) E(h)->engine.setOrtho(o == JNI_TRUE); }
 FSV_JNI(void, nativeSetViewInsets)(JNIEnv*, jclass, jlong h, jfloat top, jfloat bottom, jboolean animate) {
+    if (!h) return;
     E(h)->engine.setViewInsets(top, bottom, animate == JNI_TRUE);
 }
-FSV_JNI(void, nativeSetTurntable)(JNIEnv*, jclass, jlong h, jboolean o) { E(h)->engine.setTurntable(o == JNI_TRUE); }
-FSV_JNI(void, nativeSetSensitivity)(JNIEnv*, jclass, jlong h, jfloat s) { E(h)->engine.setSensitivity(s); }
+FSV_JNI(void, nativeSetTurntable)(JNIEnv*, jclass, jlong h, jboolean o) { if (h) E(h)->engine.setTurntable(o == JNI_TRUE); }
+FSV_JNI(void, nativeSetSensitivity)(JNIEnv*, jclass, jlong h, jfloat s) { if (h) E(h)->engine.setSensitivity(s); }
 
 // out[0..15] view-projection, [16..17] yaw/pitch, [18..19] viewport. Returns a change counter.
 FSV_JNI(jlong, nativeCameraMatrices)(JNIEnv* env, jclass, jlong h, jfloatArray out) {
@@ -399,6 +411,7 @@ FSV_JNI(jfloatArray, nativeGetCamera)(JNIEnv* env, jclass, jlong h) {
 }
 
 FSV_JNI(void, nativeSetCamera)(JNIEnv* env, jclass, jlong h, jfloatArray a, jboolean animate) {
+    if (!h) return;
     float v[7];
     env->GetFloatArrayRegion(a, 0, 7, v);
     CameraState s;
@@ -424,16 +437,18 @@ FSV_JNI(jint, nativePick)(JNIEnv* env, jclass, jlong h, jfloat x, jfloat y, jflo
 
 // ---------------------------------------------------------------- part state
 
-FSV_JNI(void, nativeSetPartColor)(JNIEnv*, jclass, jlong h, jint p, jint argb) { E(h)->engine.setPartColor(p, argbToRgba((uint32_t)argb)); }
-FSV_JNI(void, nativeSetPartVisible)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { E(h)->engine.setPartVisible(p, v == JNI_TRUE); }
-FSV_JNI(void, nativeSetPartSelected)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { E(h)->engine.setPartSelected(p, v == JNI_TRUE); }
-FSV_JNI(void, nativeSetPartHighlight)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { E(h)->engine.setPartHighlight(p, v == JNI_TRUE); }
-FSV_JNI(void, nativeSetPartGhost)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { E(h)->engine.setPartGhost(p, v == JNI_TRUE); }
+FSV_JNI(void, nativeSetPartColor)(JNIEnv*, jclass, jlong h, jint p, jint argb) { if (h) E(h)->engine.setPartColor(p, argbToRgba((uint32_t)argb)); }
+FSV_JNI(void, nativeSetPartVisible)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { if (h) E(h)->engine.setPartVisible(p, v == JNI_TRUE); }
+FSV_JNI(void, nativeSetPartSelected)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { if (h) E(h)->engine.setPartSelected(p, v == JNI_TRUE); }
+FSV_JNI(void, nativeSetPartHighlight)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { if (h) E(h)->engine.setPartHighlight(p, v == JNI_TRUE); }
+FSV_JNI(void, nativeSetPartGhost)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { if (h) E(h)->engine.setPartGhost(p, v == JNI_TRUE); }
 FSV_JNI(void, nativeSetPartMaterial)(JNIEnv*, jclass, jlong h, jint p, jfloat r, jfloat m, jfloat c) {
+    if (!h) return;
     E(h)->engine.setPartMaterial(p, r, m, c);
 }
-FSV_JNI(void, nativeSetPartVertexColors)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { E(h)->engine.setPartVertexColors(p, v == JNI_TRUE); }
+FSV_JNI(void, nativeSetPartVertexColors)(JNIEnv*, jclass, jlong h, jint p, jboolean v) { if (h) E(h)->engine.setPartVertexColors(p, v == JNI_TRUE); }
 FSV_JNI(void, nativeSetPartOffset)(JNIEnv*, jclass, jlong h, jint p, jfloat x, jfloat y, jfloat z) {
+    if (!h) return;
     E(h)->engine.setPartManualOffset(p, Vec3(x, y, z));
 }
 // Total offset (explode + manual) of a part.
@@ -444,8 +459,8 @@ FSV_JNI(void, nativeGetPartOffset)(JNIEnv* env, jclass, jlong h, jint p, jfloatA
     float v[6] = {total.x, total.y, total.z, manual.x, manual.y, manual.z};
     env->SetFloatArrayRegion(out, 0, 6, v);
 }
-FSV_JNI(void, nativeSetExplode)(JNIEnv*, jclass, jlong h, jfloat f) { E(h)->engine.setExplode(f); }
-FSV_JNI(void, nativeResetParts)(JNIEnv*, jclass, jlong h) { E(h)->engine.resetPartStates(); }
+FSV_JNI(void, nativeSetExplode)(JNIEnv*, jclass, jlong h, jfloat f) { if (h) E(h)->engine.setExplode(f); }
+FSV_JNI(void, nativeResetParts)(JNIEnv*, jclass, jlong h) { if (h) E(h)->engine.resetPartStates(); }
 
 // ---------------------------------------------------------------- options
 
@@ -453,6 +468,7 @@ FSV_JNI(void, nativeResetParts)(JNIEnv*, jclass, jlong h) { E(h)->engine.resetPa
 //          sectionAxis, sectionFlip, hatch, sectionPlane, selectColorArgb]
 // floats: [exposure, scalarMin, scalarMax, threshold, overhangAngle, sectionValue, lineScale]
 FSV_JNI(void, nativeSetOptions)(JNIEnv* env, jclass, jlong h, jintArray ints, jfloatArray floats) {
+    if (!h) return;
     jint iv[15];
     jfloat fv[7];
     env->GetIntArrayRegion(ints, 0, 15, iv);
@@ -496,6 +512,7 @@ FSV_JNI(void, nativeSceneBounds)(JNIEnv* env, jclass, jlong h, jfloatArray out) 
 // format: 0 STL, 1 OBJ, 2 3MF, 3 FSM. partMask may be null (all parts).
 FSV_JNI(jboolean, nativeExport)(JNIEnv* env, jclass, jlong h, jint fd, jint format, jbooleanArray partMask,
                                 jboolean applyOffsets) {
+    if (!h) return JNI_FALSE;
     return guarded(env, [&]() -> jboolean {
         EngineHandle* eh = E(h);
         auto model = eh->engine.model();

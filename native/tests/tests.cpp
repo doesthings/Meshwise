@@ -2,8 +2,11 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <atomic>
+#include <chrono>
 #include <functional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "analysis.h"
@@ -14,6 +17,7 @@
 #include "exporters.h"
 #include "loaders.h"
 #include "zip.h"
+#include "../host/egl_context.h"
 
 using namespace fsv;
 
@@ -276,6 +280,47 @@ int main() {
         CHECK(engine.setScalars(nullptr));
     });
 
+    // Needs a headless GL context (Mesa); skipped where none is available.
+    static const bool haveGl = fsvhost::createHeadlessContext(64, 64);
+    if (!haveGl) std::printf("[skip] engine GL tests: no headless GL context\n");
+
+    if (haveGl) test("model upload does not block the UI thread", [] {
+        Engine engine;
+        engine.onSurfaceCreated();
+        engine.onSurfaceChanged(64, 64);
+        std::shared_ptr<const Model> a(load(binaryStl(boxTris({0, 0, 0}, {4, 4, 4})), "stl").release());
+        std::shared_ptr<const Model> b(load(binaryStl(boxTris({0, 0, 0}, {8, 8, 8})), "stl").release());
+        engine.setModel(a, true);
+        int uploads = 0;
+        bool uiDone = false;
+        std::atomic<bool> replaced{false};
+        std::thread ui;
+        engine.setUploadHookForTests([&] {
+            if (++uploads != 1) return;
+            // Mid-upload: the UI thread moves the camera and replaces the model.
+            ui = std::thread([&] {
+                engine.orbit(0.1f, 0.f);
+                engine.setModel(b, false);
+                replaced = true;
+            });
+            auto end = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+            while (!replaced && std::chrono::steady_clock::now() < end) std::this_thread::yield();
+            uiDone = replaced;
+        });
+        bool again = engine.drawFrame();
+        if (ui.joinable()) ui.join();
+        CHECK(uploads == 1);
+        CHECK(uiDone);
+        CHECK(again);  // the scene changed during the upload: another frame is needed
+        engine.drawFrame();
+        CHECK(uploads == 2);  // ...and that frame uploads the new model
+        engine.drawFrame();
+        CHECK(uploads == 2);
+        std::vector<uint8_t> px;
+        CHECK(engine.thumbnail(32, px));
+        CHECK(px.size() == 32 * 32 * 4);
+    });
+
     test("STL/OBJ exporters", [] {
         auto a = load(binaryStl(boxTris({0, 0, 0}, {4, 4, 4})), "stl");
         auto stl = exportSTL(*a, ExportOptions());
@@ -412,6 +457,7 @@ int main() {
         CHECK(threw);
     });
 
+    fsvhost::destroyHeadlessContext();
     std::printf("\n%d checks, %d failures\n", gChecks, gFailures);
     return gFailures == 0 ? 0 : 1;
 }
