@@ -34,7 +34,7 @@ C=(--size 1080x2400 --linescale 1.5)
 "$R" --in "$A/trefoil_knot.stl" --out "$OUT/08_material.png" "${C[@]}" $(insets 08_material) --material all:gold
 "$R" --in "$A/keychain.3mf" --out "$OUT/09_dimensions.png" "${C[@]}" $(insets 09_dimensions)
 "$R" --in "$A/keychain.3mf" --out "$OUT/10_color.png" "${C[@]}" $(insets 10_color)
-"$R" --in "$A/spur_gear.stl" --out "$OUT/11_weight.png" "${C[@]}" $(insets 11_weight)
+"$R" --in "$A/spur_gear.stl" --out "$OUT/11_estimate.png" "${C[@]}" $(insets 11_estimate)
 "$R" --in "$ASM" --out "$OUT/13_view.png" "${C[@]}" $(insets 13_view) --edges
 "$R" --in "$ASM" --out "$OUT/14_custom.png" "${C[@]}" $(insets 14_custom) --edges --bg 6
 "$R" --in "$ASM" --out "$OUT/16_print.png" "${C[@]}" $(insets 16_print) --edges

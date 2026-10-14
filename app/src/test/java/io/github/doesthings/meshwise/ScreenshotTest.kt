@@ -221,11 +221,14 @@ class ScreenshotTest {
     }
 
     @Test
-    fun weight() {
+    fun estimate() {
         open(ModelSource.FromAsset("samples/spur_gear.stl"))
+        vm.updateSettings { it.copy(printer = "Bambu Lab P1S / P1P / X1C") }
         vm.selectTool(Tool.Print)
         vm.setPrintTab(io.github.doesthings.meshwise.viewer.PrintTab.Estimate)
-        shoot("11_weight")
+        vm.requestEstimate(0)
+        awaitUntil { vm.estimate.value.result != null && !vm.estimate.value.running }
+        shoot("11_estimate")
     }
 
     @Test

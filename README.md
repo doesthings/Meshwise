@@ -12,7 +12,7 @@
 
 **Meshwise** is a fast 3D model viewer for Android. Open 3D printing and CAD files on your
 phone and check them before you print: section cuts, measurements, wall thickness, exploded
-assemblies, weight estimates and more.
+assemblies, print time and filament estimates and more.
 
 - **Free and open source** (MIT). No ads, no account, no paywall.
 - **STEP and IGES included**, through the Open CASCADE kernel.
@@ -64,7 +64,7 @@ install it for you (see [Privacy](#privacy)). To check a download, run `apksigne
   </tr>
   <tr>
     <td align="center"><img src="docs/screenshots/10_color.png" width="260"><br><sub><b>Color</b>: paint parts, custom colors</sub></td>
-    <td align="center"><img src="docs/screenshots/11_weight.png" width="260"><br><sub><b>Weight</b> (Print prep): filament, infill, walls, cost</sub></td>
+    <td align="center"><img src="docs/screenshots/11_estimate.png" width="260"><br><sub><b>Estimate</b> (Print prep): print time, filament, weight, cost</sub></td>
     <td align="center"><img src="docs/screenshots/12_settings.png" width="260"><br><sub><b>Settings</b>: themes, accent colors, controls, units</sub></td>
   </tr>
   <tr>
@@ -102,20 +102,20 @@ install it for you (see [Privacy](#privacy)). To check a download, run `apksigne
 - **Dimensions**: tap the info bar to show the X/Y/Z size of the model
 - **Wall thickness**: gradient or threshold heat map and callouts at the thinnest walls
 - **Overhang** analysis with an adjustable angle, and a **mesh check** for open and non-manifold edges, flipped normals, degenerate faces and shell count
-- **Weight estimate**: PLA, PETG, ABS, ASA, TPU, nylon, resin and more, with infill, wall count, filament length and cost
 
 **Work with assemblies**
 - Parts list with search, show/hide, isolate, x-ray the rest, and focus
 - Explode slider, plus a manual mode with a 3-axis drag gizmo, per-part hide and undo
 - Paint parts individually or all at once, and assign materials per part
 
-**Print prep** (one Print tool: Orient · Size · Printer · Weight)
+**Print prep** (one Print tool: Orient · Size · Printer · Estimate)
 - **Lay flat**: tap any face and the model turns so that face sits on the bed
 - **Suggested orientations**: compares the model's sides and large flat faces by overhang area, contact with the bed and height, and offers the best three
 - Live overhang share, build height and area on the bed for the current orientation, with overhang shading one tap away
 - Rotate in 90° steps, mirror, undo, or go back to the file as it was
 - **Scale** by percent or to an exact size on one side; one-tap fixes for files exported in inches, cm or meters
 - **Printers**: common Bambu Lab, Prusa, Creality and Elegoo printers or a custom size; the build volume is drawn around the model with "fits", "fits turned 90°" or "scale to fit"
+- **Print estimate**: print time, filament length and weight, and cost, worked out by slicing the model the way a slicer does (walls, top and bottom layers, infill, bridges, overhangs, supports, travel) with your printer's usual slicer settings. Change layer height, infill and pattern, walls and supports and see the result update. Materials from PLA to PC (for metals and resin, the weight of the solid part)
 - Exports and projects keep the new orientation and size
 
 **Make it yours**
@@ -130,6 +130,29 @@ install it for you (see [Privacy](#privacy)). To check a download, run `apksigne
 - Save projects (`.meshwise`: camera, colors, materials, explode layout, section) and reopen them later
 - Export STL, OBJ (with part names), 3MF (with names and colors) or high-resolution PNG snapshots, optionally with a transparent background
 - Share any export straight to another app
+
+## How accurate is the print estimate?
+
+Meshwise slices the model into layers like a slicer, works out the walls, shells, infill,
+bridges and supports in each layer, and times every move with the printer's speeds,
+accelerations and corner limits, its hotend's flow limit and the minimum layer time.
+
+To check it, the same models were sliced in Bambu Studio 2.8 for four printers (Bambu Lab X1C,
+Creality K1, Prusa MK3S, Creality Ender-3 V2) with different layer heights, infill densities and
+patterns, wall counts and support types: 92 slices of 10 test models. Against Bambu Studio's own
+estimates:
+
+| | Slices | Mean difference | Largest difference |
+|---|---|---|---|
+| Print time, no supports | 80 | 3.4% | 13% |
+| Print time, tree supports | 6 | 8% | 17% |
+| Print time, normal supports | 6 | 21% | 31% |
+| Filament, no supports | 80 | 1.9% | 8% |
+| Filament, with supports | 12 | 8% | 22% |
+
+Your slicer's settings will differ from the defaults Meshwise assumes, and a slicer's estimate
+is itself an estimate of the real print, so treat the numbers as a good guide rather than exact.
+Heating, homing and bed levelling are not included.
 
 ## Performance
 

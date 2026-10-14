@@ -7,6 +7,10 @@ with those jobs. Checked items are done.
 
 Ideas and votes are welcome in [issues](../../../issues).
 
+Sections are themes, not version numbers: most improvements ship as patch releases (1.3.1,
+1.3.2, ...), and a minor version (1.4) comes with a whole new tool. See
+[RELEASING.md](RELEASING.md#version-numbers).
+
 ## How features get added (no bloat)
 
 The app should stay as quick to understand as it is today, however much it can do.
@@ -23,7 +27,7 @@ The app should stay as quick to understand as it is today, however much it can d
   be cancelled.
 - People can still hide, move or reorder tools (Settings → Customize toolbar).
 
-## 1.2: Smart measuring
+## Smart measuring (1.2)
 
 Measuring today means tapping two loose points on a mesh and hoping they landed in the right
 place. Slicers and CAD viewers let you tap *features* instead. That's the goal here.
@@ -46,9 +50,9 @@ place. Slicers and CAD viewers let you tap *features* instead. That's the goal h
 - [ ] Measure along a section cut (wall thickness in the cut, cut outline length and area)
 - [ ] Edit units inline on a result, and share all results as text
 
-## 1.3: Print prep
+## Print prep (1.3)
 
-All in one **Print** tool (it replaces the Weight button; weight is one of its tabs).
+All in one **Print** tool (it replaces the Weight button; the print estimate is one of its tabs).
 
 - [x] **Lay flat on face**: tap a face and the model is turned so that face sits on the bed
 - [x] **Suggested orientations**: compares the axis directions and the model's large flat faces
@@ -61,13 +65,16 @@ All in one **Print** tool (it replaces the Weight button; weight is one of its t
 - [x] **Printer beds**: common Bambu Lab, Prusa, Creality and Elegoo printers or a custom size; the
       build volume is drawn around the model, with "fits", "fits turned 90°" or "scale to fit"
 - [x] Exports and projects keep the new orientation and size
+- [x] **Print estimate** (1.3.1): print time, filament, weight and cost from slicing the model
+      like a slicer, with each printer's usual slicer settings; layer height, infill and pattern,
+      walls, normal or tree supports. Checked against Bambu Studio (see the README)
+- [ ] Estimate for several copies, brims and rafts
 - [ ] Free rotation with a gizmo
 - [ ] More printers (resin printers too)
-- [ ] Height in layers for a chosen layer height
-- [ ] Better overhang view: bridges vs. real overhangs, support area estimate
+- [ ] Better overhang view: bridges vs. real overhangs, the support area drawn on the model
 - [ ] Several copies on the bed, and "split to fit" for parts larger than the printer
 
-## 1.4: Smarter holes and checks
+## Smarter holes and checks
 
 - [ ] **Screw and insert helper**: a measured hole is matched to the nearest standard size (M2–M8
       clearance, tap drill, common heat-set inserts) with how much it's off
@@ -75,7 +82,7 @@ All in one **Print** tool (it replaces the Weight button; weight is one of its t
 - [ ] Thin-wall and small-feature warnings for the chosen nozzle size
 - [ ] Tolerance check between two parts of an assembly (gap or interference)
 
-## 1.5: Mesh repair and editing
+## Mesh repair and editing
 
 - [ ] Fix flipped normals, remove degenerate and duplicate faces
 - [ ] Fill small holes so the mesh becomes watertight
@@ -83,7 +90,7 @@ All in one **Print** tool (it replaces the Weight button; weight is one of its t
 - [ ] Simple cut: split the model with the section plane and export both halves
 - [ ] Reduce triangle count (decimate) for huge scans before sharing
 
-## 1.6: G-code preview
+## G-code preview
 
 - [ ] Open `.gcode` / `.bgcode`: layer slider, travel moves, feature colors (walls, infill, supports)
 - [ ] Print time and filament as reported by the slicer, per-layer height and speed
@@ -116,6 +123,8 @@ All in one **Print** tool (it replaces the Weight button; weight is one of its t
 
 ## Done
 
+- [x] 1.3.1: print estimate (time, filament, weight, cost) in the Print tool
+- [x] 1.3: print prep (orient, size, printer fit)
 - [x] Updates: the app checks GitHub once a day (can be turned off), shows what changed in every
       version you missed, and downloads, verifies and installs the update when you tap Update
 - [x] 1.2: smart measuring (see above)

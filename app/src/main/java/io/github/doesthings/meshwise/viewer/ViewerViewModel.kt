@@ -33,6 +33,7 @@ import io.github.doesthings.meshwise.engine.CameraFrame
 import io.github.doesthings.meshwise.engine.DensityPreset
 import io.github.doesthings.meshwise.engine.Filament
 import io.github.doesthings.meshwise.engine.Engine
+import io.github.doesthings.meshwise.engine.EstimateSettings
 import io.github.doesthings.meshwise.engine.ExportFormat
 import io.github.doesthings.meshwise.engine.MaterialPreset
 import io.github.doesthings.meshwise.engine.MeasureFeature
@@ -1146,6 +1147,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     private val _estimate = MutableStateFlow(EstimateUi())
     val estimate = _estimate.asStateFlow()
     private var estimateJob: Job? = null
+    private var estimateFor: Triple<ModelInfo, EstimateSettings, List<Boolean>?>? = null  // what the shown/running estimate is for
 
     /**
      * Works out how long the shown model takes to print and how much filament it needs, in the
@@ -1156,9 +1158,10 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     fun requestEstimate(scope: Int) {
         val info = _model.value ?: return
         val s = settings.value
-        estimateJob?.cancel()
         val filament = Filament.of(DensityPreset.entries.getOrElse(s.density) { DensityPreset.PLA })
         if (filament == null) {
+            estimateJob?.cancel()
+            estimateFor = null
             _estimate.value = EstimateUi()
             return
         }
@@ -1168,7 +1171,14 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
             2 -> BooleanArray(info.parts.size) { it == _selected.value }
             else -> null
         }
+        val key = Triple(info, es, parts?.toList())
+        val current = estimateFor
+        if (current != null && current.first === info && current.second == es && current.third == key.third &&
+            (_estimate.value.running || _estimate.value.result != null)
+        ) return  // already shown or on its way
+        estimateFor = key
         _estimate.update { it.copy(running = true, progress = 0f, failed = false) }
+        estimateJob?.cancel()
         estimateJob = viewModelScope.launch(Dispatchers.Default) {
             delay(250)  // settle while sliders move
             val job = coroutineContext[Job]

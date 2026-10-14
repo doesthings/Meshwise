@@ -899,8 +899,10 @@ PrintEstimate estimatePrint(const Model& m, const PrintSettings& s, Progress pro
                     const int d = dirs[di];
                     const double perp = d >= kDiagUp ? c / kSqrt2 : c;
                     const double lines = perp / (f.lineSpacing * ndirs);
+                    // An anchor runs along the wall at most halfway to the next line's end.
+                    const double anchorGap = 0.5 * f.lineSpacing * kSqrt2;
                     double sum = 0;
-                    for (float r : runs[f.cls][d]) sum += r + (f.sparse ? 2 * std::min((double)s.infillAnchor, 0.5 * r) : f.lineSpacing * kSqrt2);
+                    for (float r : runs[f.cls][d]) sum += r + (f.sparse ? 2 * std::min({(double)s.infillAnchor, 0.5 * r, anchorGap}) : f.lineSpacing * kSqrt2);
                     len += lines * sum;
                     if (f.sparse) sparsePieces += lines * runs[f.cls][d].size();
                 }
@@ -1042,6 +1044,7 @@ PrintEstimate estimatePrint(const Model& m, const PrintSettings& s, Progress pro
                         const int d = dirs[di];
                         const double perp = d >= kDiagUp ? c / kSqrt2 : c;
                         const double lines = perp / (f.lineSpacing * ndirs);
+                        const double anchorGap = 0.5 * f.lineSpacing * kSqrt2;
                         // Corner speed where a line turns into the link to the next one.
                         const V2 u = d == kAlongX ? V2{1, 0} : d == kAlongY ? V2{0, 1} : d == kDiagUp ? V2{0.5 * kSqrt2, 0.5 * kSqrt2} : V2{0.5 * kSqrt2, -0.5 * kSqrt2};
                         const double vc = std::min(v, junctionSpeed(u, v, V2{-u.y, u.x}, v, jc));
@@ -1050,11 +1053,11 @@ PrintEstimate estimatePrint(const Model& m, const PrintSettings& s, Progress pro
                         if (f.sparse && gyroid) {
                             // Gyroid lines are waves: the turns, not the straights, set the pace.
                             const double perMm = gyroidSecondsPerMm(v, f.accel, jc, (density / 0.15) * (0.357 / spacing(f.width)));
-                            for (float r : runs[f.cls][d]) sum += (r + 2 * std::min((double)s.infillAnchor, 0.5 * r)) * perMm;
+                            for (float r : runs[f.cls][d]) sum += (r + 2 * std::min({(double)s.infillAnchor, 0.5 * r, anchorGap})) * perMm;
                         } else {
                             for (float r : runs[f.cls][d])
                                 sum += moveTime(r, v, f.accel, vc, vc) +
-                                       (f.sparse ? 2 * moveTime(std::min((double)s.infillAnchor, 0.5 * r), v, f.accel, vc, vc) : tLink);
+                                       (f.sparse ? 2 * moveTime(std::min({(double)s.infillAnchor, 0.5 * r, anchorGap}), v, f.accel, vc, vc) : tLink);
                         }
                         t += lines * sum;
                     }

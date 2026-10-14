@@ -1,8 +1,34 @@
 # Changelog
 
 All notable changes to Meshwise are listed here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[semantic versioning](https://semver.org/).
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). From 1.3.1 on, most releases raise only
+the last number; see [version numbers](docs/RELEASING.md#version-numbers).
+
+## [1.3.1] - 2026-10-14
+
+A real print estimate: time, filament, weight and cost, worked out like a slicer.
+
+### Added
+- **Estimate** tab in the Print tool (it replaces the Weight tab). Meshwise slices the model into
+  layers like a slicer: walls from the contour, top and bottom layers, internal bridges, sparse
+  and solid infill, thin gaps, the skirt, overhangs and supports. Every move is timed with the
+  printer's speeds and accelerations, Marlin-style corner speeds, the hotend's flow limit and the
+  minimum layer time. Shows print time, filament length and weight, cost and the support's share,
+  with a breakdown of where the time goes.
+- Layer height, infill density and pattern (lines, grid, cubic, gyroid), walls and normal or tree
+  supports can be changed; the result updates and stays in view while you do.
+- Each printer preset carries its usual slicer settings (Bambu Studio's for Bambu Lab, Creality,
+  Elegoo and the Prusa MINI+; PrusaSlicer's for the MK4/MK4S, CORE One and XL). Without a printer,
+  generic settings are used.
+- Materials set their flow ratio and how fast they can be melted (PETG, ABS, ASA, TPU, nylon and
+  PC print slower than PLA); 1.75 or 2.85 mm filament.
+- A hint with a one-tap fix when the model has overhangs that need supports.
+- The README explains how the estimate was checked against Bambu Studio (92 slices, 4 printers).
+
+### Changed
+- Version numbers: most releases now raise only the last number (1.3.1, 1.3.2, ...); see
+  docs/RELEASING.md.
+- The default infill for the estimate is 15 % (the slicers' default).
 
 ## [1.3.0] - 2026-10-14
 

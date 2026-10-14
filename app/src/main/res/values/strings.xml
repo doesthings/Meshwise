@@ -93,7 +93,7 @@
     <string name="scope_selected">Selected</string>
     <string name="not_watertight_warning">The mesh has holes, so volume and weight are approximate.</string>
     <string name="print_estimate">Estimate</string>
-    <string name="estimate_using">Using the %1$s\'s usual slicer settings</string>
+    <string name="estimate_using">Usual slicer settings for the %1$s</string>
     <string name="estimate_no_printer">Generic printer settings. Pick your printer for a closer estimate.</string>
     <string name="estimate_layer_height">Layer height (mm)</string>
     <string name="estimate_supports">Supports</string>
@@ -117,7 +117,7 @@
     <string name="breakdown_travel">Travel and retraction</string>
     <string name="filament_diameter">Filament diameter (mm)</string>
     <string name="estimate_solid_note">Weight of the solid part. Print estimates are for filament materials.</string>
-    <string name="estimate_note" formatted="false">Worked out by slicing the model the way a slicer does. In our tests against Bambu Studio, times were within about 5% on average and filament within about 4%; supports vary more (about 20%). Heating, homing and bed levelling aren\'t included.</string>
+    <string name="estimate_note" formatted="false">Worked out by slicing the model the way a slicer does. In our tests against Bambu Studio\'s estimates, print times differed by 3.4% on average and filament by 1.9%; supports add more uncertainty (about 20% with normal supports). Heating, homing and bed levelling aren\'t included.</string>
 
     <!-- Color & material -->
     <string name="color_title">Color</string>

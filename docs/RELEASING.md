@@ -20,6 +20,20 @@ the Actions tab, also works.
 The version code comes from the version (`major*10000 + minor*100 + patch`, times ten, plus an
 ABI digit for the split APKs), so each release installs over the previous one.
 
+## Version numbers
+
+`MAJOR.MINOR.PATCH`, raised as little as the change allows:
+
+- **Patch** (1.3.0 → 1.3.1) for most releases: improvements, better accuracy, new options in an
+  existing tool, UI polish and fixes.
+- **Minor** (1.3 → 1.4) only when a release adds a whole new tool or a new kind of file.
+  Several patch releases usually come in between.
+- **Major** (1 → 2) for a redesign, or a change that old project files can't follow.
+
+Collect changes and release when there is something worth updating for, not after every
+commit; urgent fixes can go out on their own. The patch number can go up to 99 (it is part of
+the version code).
+
 ## Signing key (one-time setup)
 
 A release is only published when every APK is signed with the Meshwise release key. The
