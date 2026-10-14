@@ -491,5 +491,5 @@
     <string name="too_big">Too big for this printer</string>
     <string name="scale_to_fit">Scale to fit</string>
     <string name="turn_90">Turn 90°</string>
-    <string name="printer_note">Build volumes from the makers\' published specs. The volume is drawn around the model.</string>
+    <string name="printer_note">Build volumes from the makers\' published specs. The volume is drawn around the model, and the print estimate uses the printer\'s usual slicer settings.</string>
 </resources>

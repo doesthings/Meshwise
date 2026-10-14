@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -97,6 +98,7 @@ fun EstimateContent(vm: ViewerViewModel) {
         info, scope, visibleKey, if (scope == 2) selected else -1, s.density, s.infill, s.walls, s.layerHeight,
         s.infillPattern, s.supports, s.filamentDiameter, s.printer,
     ) { vm.requestEstimate(scope) }
+    DisposableEffect(Unit) { onDispose { vm.cancelEstimate() } }
 
     if (info.parts.size > 1) {
         val scopeLabels = listOf(stringResource(R.string.scope_all), stringResource(R.string.scope_visible), stringResource(R.string.scope_selected))

@@ -1149,6 +1149,14 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     private var estimateJob: Job? = null
     private var estimateFor: Triple<ModelInfo, EstimateSettings, List<Boolean>?>? = null  // what the shown/running estimate is for
 
+    /** Stops an estimate that is still being worked out (its tab was left). */
+    fun cancelEstimate() {
+        if (!_estimate.value.running) return
+        estimateJob?.cancel()
+        estimateFor = null
+        _estimate.update { it.copy(running = false) }
+    }
+
     /**
      * Works out how long the shown model takes to print and how much filament it needs, in the
      * background; a newer request replaces a running one. [scope]: 0 all parts, 1 the visible
