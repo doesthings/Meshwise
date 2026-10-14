@@ -13,6 +13,7 @@
 #include "bvh.h"
 #include "camera.h"
 #include "feature_finder.h"
+#include "print_estimate.h"
 #include "print_prep.h"
 #include "engine.h"
 #include "fsm_format.h"
@@ -537,6 +538,82 @@ int main() {
         CHECK_NEAR(best[0].down.z, 1.0, 1e-3);
         CHECK(best[0].overhangArea < upright.overhangArea);
         CHECK(best.size() <= 3);
+    });
+
+    test("print estimate: a cube's walls, shells, infill and time", [] {
+        auto cube = load(binaryStl(boxTris({0, 0, 0}, {20, 20, 20})), "stl");
+        PrintSettings s;
+        s.outerWidth = s.innerWidth = s.infillWidth = s.solidWidth = s.topWidth = s.firstLayerWidth = 0.4f;
+        s.infillDensity = 0.2f;
+        PrintEstimate e = estimatePrint(*cube, s, Progress());
+        CHECK(e.layers == 100);
+        // Outer wall centre line 0.2 mm in from each face; the first wall of the next row 0.357 mm on.
+        CHECK_NEAR(e.outerWallMm / 100, 4 * 19.6, 1.5);
+        CHECK_NEAR(e.innerWallMm / 100, 4 * (20 - 2 * 0.557), 1.5);
+        CHECK(e.topSurfaceMm > 0 && e.bottomSurfaceMm > 0 && e.solidInfillMm > 0 && e.bridgeMm > 0);
+        // Plastic: walls + shells + 20 % of the core, well under the solid volume.
+        CHECK(e.volumeMm3 > 0.25 * 8000 && e.volumeMm3 < 0.45 * 8000);
+        CHECK_NEAR(e.filamentMm, e.volumeMm3 / (kPi * 0.875 * 0.875), 1e-6 * e.filamentMm + 1e-3);
+        CHECK(e.seconds > 100 * s.minLayerTime * 0.9);  // small layers wait for cooling
+        CHECK(e.seconds < 3600);
+        // Denser infill means more plastic and more time.
+        PrintSettings dense = s;
+        dense.infillDensity = 0.5f;
+        PrintEstimate d = estimatePrint(*cube, dense, Progress());
+        CHECK(d.sparseInfillMm > 2 * e.sparseInfillMm && d.volumeMm3 > e.volumeMm3);
+        // Thinner layers: more layers, more time.
+        PrintSettings fine = s;
+        fine.layerHeight = 0.1f;
+        PrintEstimate f = estimatePrint(*cube, fine, Progress());
+        CHECK(f.layers == 199);
+        CHECK(f.seconds > 1.5 * e.seconds);
+    });
+
+    test("print estimate: holes, inside-out meshes and cancelling", [] {
+        auto washer = load(binaryStl(washerTris(20, 17, 10, 96)), "stl");
+        PrintSettings s;
+        s.outerWidth = 0.4f;
+        PrintEstimate e = estimatePrint(*washer, s, Progress());
+        // Outer wall on both the rim and the hole, per layer.
+        CHECK_NEAR(e.outerWallMm / e.layers, 2 * kPi * (19.8 + 17.2), 3.0);
+        CHECK(e.travels >= 2 * e.layers);
+        // The same washer with every triangle wound backwards slices the same.
+        auto tris = washerTris(20, 17, 10, 96);
+        for (size_t i = 0; i < tris.size(); i += 9)
+            for (int k = 0; k < 3; ++k) std::swap(tris[i + 3 + k], tris[i + 6 + k]);
+        PrintEstimate flipped = estimatePrint(*load(binaryStl(tris), "stl"), s, Progress());
+        CHECK_NEAR(flipped.seconds, e.seconds, 1e-6 * e.seconds);
+        CHECK_NEAR(flipped.volumeMm3, e.volumeMm3, 1e-6 * e.volumeMm3);
+        bool cancelled = false;
+        try {
+            estimatePrint(*washer, s, Progress([](float f) { return f < 0.3f; }));
+        } catch (const CancelledError&) {
+            cancelled = true;
+        }
+        CHECK(cancelled);
+    });
+
+    test("print estimate: overhangs, supports and bridges", [] {
+        auto stem = boxTris({-2, -2, 0}, {2, 2, 10});
+        auto cap = boxTris({-10, -10, 10}, {10, 10, 12});
+        stem.insert(stem.end(), cap.begin(), cap.end());
+        auto mush = load(binaryStl(stem), "stl");
+        PrintSettings s;
+        PrintEstimate bare = estimatePrint(*mush, s, Progress());
+        CHECK(bare.supportMm3 == 0);
+        CHECK(bare.supportAreaMm2 > 350 && bare.supportAreaMm2 < 450);  // the cap's underside, less the stem
+        CHECK(bare.bridgeMm > 0);
+        s.supports = true;
+        PrintEstimate normal = estimatePrint(*mush, s, Progress());
+        CHECK(normal.supportMm3 > 0 && normal.support > 0);
+        CHECK(normal.volumeMm3 > bare.volumeMm3 && normal.seconds > bare.seconds);
+        s.treeSupports = true;
+        PrintEstimate tree = estimatePrint(*mush, s, Progress());
+        CHECK(tree.supportMm3 < normal.supportMm3);
+        // Upside down the cap sits on the bed: nothing to support.
+        const float flip[12] = {1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0};
+        PrintEstimate onCap = estimatePrint(*transformModel(*mush, flip, true, nullptr), s, Progress());
+        CHECK(onCap.supportMm3 < 0.01 * normal.supportMm3);
     });
 
     test("camera: fit, project centre, zoom anchor", [] {

@@ -26,6 +26,7 @@ set(FSV_CORE_SOURCES
   core/analysis.cpp
   core/feature_finder.cpp
   core/print_prep.cpp
+  core/print_estimate.cpp
   core/exporters.cpp
   core/camera.cpp
   core/shaders.cpp
@@ -77,6 +78,8 @@ else()
 
   add_executable(fsv_bench host/bench.cpp)
   target_link_libraries(fsv_bench PRIVATE fsvcore)
+  add_executable(fsv_estimate host/estimate_main.cpp)
+  target_link_libraries(fsv_estimate PRIVATE fsvcore)
 
   # The JNI bridge built for the desktop JVM, used by the app's Robolectric tests.
   find_package(JNI)
