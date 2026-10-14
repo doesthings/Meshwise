@@ -144,11 +144,12 @@ estimates:
 
 | | Slices | Mean difference | Largest difference |
 |---|---|---|---|
-| Print time, no supports | 80 | 3.4% | 13% |
-| Print time, tree supports | 6 | 8% | 17% |
-| Print time, normal supports | 6 | 21% | 31% |
+| Print time, no supports | 80 | 3.3% | 13% |
+| Print time, with supports | 12 | 14% (tree 8%, normal 21%) | 31% |
 | Filament, no supports | 80 | 1.9% | 8% |
 | Filament, with supports | 12 | 8% | 22% |
+
+You can repeat the check with the scripts in [scripts/estimate_check](scripts/estimate_check).
 
 Your slicer's settings will differ from the defaults Meshwise assumes, and a slicer's estimate
 is itself an estimate of the real print, so treat the numbers as a good guide rather than exact.
