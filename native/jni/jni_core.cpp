@@ -11,6 +11,7 @@
 #include "analysis.h"
 #include "engine.h"
 #include "exporters.h"
+#include "print_estimate.h"
 #include "print_prep.h"
 #include "loaders.h"
 #include "jni_strings.h"
@@ -346,6 +347,59 @@ FSV_JNI(jfloatArray, nativeSuggestOrientations)(JNIEnv* env, jclass, jlong h, jf
         env->SetFloatArrayRegion(arr, 0, (jsize)v.size(), v.data());
         return arr;
     }, (jfloatArray) nullptr);
+}
+
+// Print time and material estimate for the shown model. `f` and `n` carry PrintSettings in
+// the order EstimateSettings.toArrays() writes them; `parts` picks parts (null: all). Returns
+// [seconds, volume, filament length, support volume, support area, layers, then seconds for
+// outer wall, inner wall, sparse infill, solid infill, top, bottom, bridge, support, skirt, travel].
+FSV_JNI(jdoubleArray, nativeEstimatePrint)(JNIEnv* env, jclass, jlong h, jfloatArray f, jintArray n, jbooleanArray parts,
+                                          jobject progress) {
+    if (!h || !f || !n) return nullptr;
+    return guarded(env, [&]() -> jdoubleArray {
+        auto model = E(h)->engine.model();
+        if (!model) return nullptr;
+        std::vector<float> fv(env->GetArrayLength(f));
+        std::vector<jint> nv(env->GetArrayLength(n));
+        env->GetFloatArrayRegion(f, 0, (jsize)fv.size(), fv.data());
+        env->GetIntArrayRegion(n, 0, (jsize)nv.size(), nv.data());
+        if (fv.size() < 53 || nv.size() < 9) throw std::runtime_error("bad estimate settings");
+        PrintSettings s;
+        float* dst[] = {&s.layerHeight, &s.firstLayerHeight, &s.outerWidth, &s.innerWidth, &s.infillWidth, &s.solidWidth,
+                        &s.topWidth, &s.firstLayerWidth, &s.supportWidth, &s.topThickness, &s.bottomThickness, &s.infillDensity,
+                        &s.infillOverlap, &s.infillAnchor, &s.minSparseArea, &s.outerSpeed, &s.innerSpeed, &s.infillSpeed,
+                        &s.solidSpeed, &s.topSpeed, &s.firstLayerSpeed, &s.firstLayerInfillSpeed, &s.travelSpeed, &s.bridgeSpeed,
+                        &s.supportSpeed, &s.supportInterfaceSpeed, &s.overhangSpeed[0], &s.overhangSpeed[1], &s.overhangSpeed[2],
+                        &s.smallPerimeterFactor, &s.smallPerimeterRadius, &s.outerAccel, &s.innerAccel, &s.infillAccel,
+                        &s.solidAccel, &s.topAccel, &s.travelAccel, &s.firstLayerAccel, &s.jerk, &s.maxVolumetricSpeed,
+                        &s.minLayerTime, &s.minSpeed, &s.retractLength, &s.retractSpeed, &s.retractMinTravel, &s.zHop,
+                        &s.zSpeed, &s.skirtDistance, &s.supportAngle, &s.supportSpacing, &s.supportInterfaceSpacing,
+                        &s.filamentDiameter, &s.flowRatio};
+        static_assert(sizeof(dst) / sizeof(dst[0]) == 53, "settings layout");
+        for (size_t i = 0; i < 53; ++i) *dst[i] = fv[i];
+        s.walls = nv[0];
+        s.topLayers = nv[1];
+        s.bottomLayers = nv[2];
+        s.topOneWall = nv[3] != 0;
+        s.infillPattern = nv[4];
+        s.skirtLoops = nv[5];
+        s.supports = nv[6] != 0;
+        s.treeSupports = nv[7] != 0;
+        s.supportInterfaceLayers = nv[8];
+        if (parts) {
+            std::vector<jboolean> pv(env->GetArrayLength(parts));
+            env->GetBooleanArrayRegion(parts, 0, (jsize)pv.size(), pv.data());
+            s.parts.assign(pv.begin(), pv.end());
+        }
+        PrintEstimate e = estimatePrint(*model, s, Progress(makeProgress(env, progress)));
+        const double v[] = {e.seconds, e.volumeMm3, e.filamentMm, e.supportMm3, e.supportAreaMm2, (double)e.layers,
+                            e.outerWall, e.innerWall, e.sparseInfill, e.solidInfill, e.topSurface, e.bottomSurface,
+                            e.bridge, e.support, e.skirt, e.travel};
+        const jsize count = (jsize)(sizeof(v) / sizeof(v[0]));
+        jdoubleArray arr = env->NewDoubleArray(count);
+        env->SetDoubleArrayRegion(arr, 0, count, v);
+        return arr;
+    }, (jdoubleArray) nullptr);
 }
 
 // ---------------------------------------------------------------- analysis

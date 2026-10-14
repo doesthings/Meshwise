@@ -79,8 +79,7 @@
     <string name="copied">Copied to clipboard</string>
     <string name="collinear_points">These points are in a straight line. Pick points spread around the circle.</string>
 
-    <!-- Weight -->
-    <string name="weight_title">Weight estimate</string>
+    <!-- Weight and print estimate -->
     <string name="weight_material">Material</string>
     <string name="weight_infill">Infill</string>
     <string name="weight_walls">Walls</string>
@@ -88,12 +87,37 @@
     <string name="volume">Volume</string>
     <string name="surface_area">Surface area</string>
     <string name="weight">Weight</string>
-    <string name="filament_length">Filament (1.75 mm)</string>
     <string name="cost">Cost</string>
     <string name="scope_all">All</string>
     <string name="scope_visible">Visible</string>
     <string name="scope_selected">Selected</string>
     <string name="not_watertight_warning">The mesh has holes, so volume and weight are approximate.</string>
+    <string name="print_estimate">Estimate</string>
+    <string name="estimate_using">Using the %1$s\'s usual slicer settings</string>
+    <string name="estimate_no_printer">Generic printer settings. Pick your printer for a closer estimate.</string>
+    <string name="estimate_layer_height">Layer height (mm)</string>
+    <string name="estimate_supports">Supports</string>
+    <string name="supports_off">Off</string>
+    <string name="supports_normal">Normal</string>
+    <string name="supports_tree">Tree</string>
+    <string name="pattern_lines">Lines</string>
+    <string name="pattern_grid">Grid</string>
+    <string name="pattern_cubic">Cubic</string>
+    <string name="pattern_gyroid">Gyroid</string>
+    <string name="estimate_filament">Filament</string>
+    <string name="estimate_layers">%1$d layers</string>
+    <string name="estimate_working">Slicing…</string>
+    <string name="estimate_failed">Couldn\'t work this one out</string>
+    <string name="estimate_needs_support">Some overhangs here would need supports.</string>
+    <string name="estimate_add_supports">Add</string>
+    <string name="estimate_details">Details</string>
+    <string name="breakdown_walls">Walls</string>
+    <string name="breakdown_infill">Infill</string>
+    <string name="breakdown_solid">Top, bottom and solid layers</string>
+    <string name="breakdown_travel">Travel and retraction</string>
+    <string name="filament_diameter">Filament diameter (mm)</string>
+    <string name="estimate_solid_note">Weight of the solid part. Print estimates are for filament materials.</string>
+    <string name="estimate_note" formatted="false">Worked out by slicing the model the way a slicer does. In our tests against Bambu Studio, times were within about 5% on average and filament within about 4%; supports vary more (about 20%). Heating, homing and bed levelling aren\'t included.</string>
 
     <!-- Color & material -->
     <string name="color_title">Color</string>

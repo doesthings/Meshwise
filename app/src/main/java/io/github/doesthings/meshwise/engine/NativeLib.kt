@@ -66,6 +66,7 @@ object NativeLib {
     @JvmStatic external fun nativeSetTransformedModel(h: Long, model: Long)
     @JvmStatic external fun nativeOrientationStats(h: Long, dx: Float, dy: Float, dz: Float, angle: Float): FloatArray?
     @JvmStatic external fun nativeSuggestOrientations(h: Long, angle: Float, count: Int, progress: NativeProgress?): FloatArray?
+    @JvmStatic external fun nativeEstimatePrint(h: Long, f: FloatArray, n: IntArray, parts: BooleanArray?, progress: NativeProgress?): DoubleArray?
     @JvmStatic external fun nativeMeasurePick(h: Long, x: Float, y: Float, snapPx: Float): FloatArray?
     @JvmStatic external fun nativeSetTurntableSpeed(h: Long, radPerSec: Float)
     @JvmStatic external fun nativeSetFov(h: Long, degrees: Float)

@@ -1,10 +1,10 @@
 #include "print_estimate.h"
 
 #include <algorithm>
-#include <cmath>
 #include <atomic>
+#include <chrono>
+#include <cmath>
 #include <deque>
-#include <mutex>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -282,8 +282,11 @@ enum Dir { kAlongX = 0, kAlongY = 1, kDiagUp = 2, kDiagDown = 3 };
 PrintEstimate estimatePrint(const Model& m, const PrintSettings& s, Progress progress) {
     PrintEstimate est;
     const size_t nt = m.triangleCount();
-    if (nt == 0 || !m.bounds.valid()) return est;
-    const Box3 bb = m.bounds;
+    auto included = [&](size_t part) { return s.parts.empty() || (part < s.parts.size() && s.parts[part]); };
+    Box3 bb;
+    for (size_t i = 0; i < m.parts.size(); ++i)
+        if (included(i) && m.parts[i].bounds.valid()) bb.expand(m.parts[i].bounds);
+    if (nt == 0 || !bb.valid()) return est;
     const double H = bb.max.z - bb.min.z;
     const double h = std::max(0.02f, s.layerHeight), h1 = std::max(0.02f, s.firstLayerHeight);
     const int nLayers = H <= h1 ? 1 : 1 + (int)std::ceil((H - h1) / h - 1e-6);
@@ -304,17 +307,22 @@ PrintEstimate estimatePrint(const Model& m, const PrintSettings& s, Progress pro
     const double cellArea = c * c;
 
     // Triangles sorted by their lowest point, for a sweep through the layers.
-    std::vector<uint32_t> order(nt);
+    std::vector<uint32_t> order;
     std::vector<float> tzmin(nt), tzmax(nt);
     std::vector<uint8_t> flip(nt, 0);
-    for (const Part& p : m.parts)
-        for (uint32_t t = p.firstIndex / 3; t < (p.firstIndex + p.indexCount) / 3; ++t) flip[t] = p.volume < 0;
-    for (uint32_t t = 0; t < nt; ++t) {
-        float a = m.positions[3 * m.indices[3 * t] + 2], b = m.positions[3 * m.indices[3 * t + 1] + 2], cz = m.positions[3 * m.indices[3 * t + 2] + 2];
-        tzmin[t] = std::min({a, b, cz});
-        tzmax[t] = std::max({a, b, cz});
-        order[t] = t;
+    order.reserve(nt);
+    for (size_t pi = 0; pi < m.parts.size(); ++pi) {
+        if (!included(pi)) continue;
+        const Part& p = m.parts[pi];
+        for (uint32_t t = p.firstIndex / 3; t < (p.firstIndex + p.indexCount) / 3; ++t) {
+            flip[t] = p.volume < 0;
+            float a = m.positions[3 * m.indices[3 * t] + 2], b = m.positions[3 * m.indices[3 * t + 1] + 2], cz = m.positions[3 * m.indices[3 * t + 2] + 2];
+            tzmin[t] = std::min({a, b, cz});
+            tzmax[t] = std::max({a, b, cz});
+            order.push_back(t);
+        }
     }
+    const size_t nOrder = order.size();
     std::sort(order.begin(), order.end(), [&](uint32_t a, uint32_t b) { return tzmin[a] < tzmin[b]; });
     // Shell counts: at least the layers, at least the thickness.
     const int topN = std::max(1, std::max(s.topLayers, (int)std::ceil(s.topThickness / h - 1e-6)));
@@ -356,14 +364,22 @@ PrintEstimate estimatePrint(const Model& m, const PrintSettings& s, Progress pro
     const int nChunks = (nLayers + chunk - 1) / chunk;
     std::atomic<int> nextChunk{0}, layersDone{0};
     std::atomic<bool> cancelled{false};
-    std::mutex progressLock;
+    std::atomic<unsigned> helpersDone{0};
 
-    auto worker = [&](PrintEstimate& est) {
+    // Progress goes through the calling thread only (it may call back into Java).
+    auto report = [&](int n) {
+        try {
+            progress.report(0.98f * (float)n / (float)nLayers);
+        } catch (const CancelledError&) {
+            cancelled = true;
+        }
+    };
+    auto worker = [&](PrintEstimate& est, bool reporter) {
         size_t next = 0;
         std::vector<uint32_t> active;
         std::vector<std::vector<std::pair<float, int>>> rows(g.ny);
         auto slice = [&](double z, Layer& L) {
-            while (next < nt && tzmin[order[next]] <= z) active.push_back(order[next++]);
+            while (next < nOrder && tzmin[order[next]] <= z) active.push_back(order[next++]);
             active.erase(std::remove_if(active.begin(), active.end(), [&](uint32_t t) { return tzmax[t] < z; }), active.end());
             std::vector<Seg> segs;
             segs.reserve(active.size() / 2 + 16);
@@ -1166,14 +1182,7 @@ PrintEstimate estimatePrint(const Model& m, const PrintSettings& s, Progress pro
                 layer(k, *layerAt(k), layerAt, acc, k >= k0);
                 if (k < k0) continue;
                 const int n = ++layersDone;
-                if (progressLock.try_lock()) {  // whichever thread is free reports; Progress is not thread-safe
-                    try {
-                        progress.report(0.98f * (float)n / (float)nLayers);
-                    } catch (const CancelledError&) {
-                        cancelled = true;
-                    }
-                    progressLock.unlock();
-                }
+                if (reporter) report(n);
             }
         }
     };
@@ -1182,8 +1191,16 @@ PrintEstimate estimatePrint(const Model& m, const PrintSettings& s, Progress pro
     std::vector<PrintEstimate> parts(threads);
     {
         std::vector<std::thread> pool;
-        for (unsigned t = 1; t < threads; ++t) pool.emplace_back(worker, std::ref(parts[t]));
-        worker(parts[0]);
+        for (unsigned t = 1; t < threads; ++t)
+            pool.emplace_back([&, t] {
+                worker(parts[t], false);
+                ++helpersDone;
+            });
+        worker(parts[0], true);
+        while (helpersDone < threads - 1) {
+            report(layersDone);
+            std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        }
         for (auto& th : pool) th.join();
     }
     if (cancelled) throw CancelledError();

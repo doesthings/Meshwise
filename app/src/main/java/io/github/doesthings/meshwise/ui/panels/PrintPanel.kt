@@ -62,7 +62,7 @@ import io.github.doesthings.meshwise.viewer.Tool
 import io.github.doesthings.meshwise.viewer.ViewerViewModel
 import java.util.Locale
 
-/** Print prep: orientation, size, printer fit and weight in one tool. */
+/** Print prep: orientation, size, printer fit and the print estimate in one tool. */
 @Composable
 fun PrintPanel(vm: ViewerViewModel) {
     val st by vm.print.collectAsStateWithLifecycle()
@@ -70,7 +70,7 @@ fun PrintPanel(vm: ViewerViewModel) {
         PrintTab.Orient to stringResource(R.string.print_orient),
         PrintTab.Size to stringResource(R.string.print_size),
         PrintTab.Printer to stringResource(R.string.print_printer),
-        PrintTab.Weight to stringResource(R.string.weight),
+        PrintTab.Estimate to stringResource(R.string.print_estimate),
     )
     ToolPanel(
         stringResource(R.string.tool_print), Icons.Rounded.Print, onClose = { vm.selectTool(Tool.None) },
@@ -87,12 +87,13 @@ fun PrintPanel(vm: ViewerViewModel) {
     ) {
         Segmented(PrintTab.entries, st.tab, label = { tabLabels.getValue(it) }, onSelect = vm::setPrintTab)
         if (st.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (st.tab == PrintTab.Estimate) EstimateSummary(vm)
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (st.tab) {
                 PrintTab.Orient -> OrientContent(vm)
                 PrintTab.Size -> SizeContent(vm)
                 PrintTab.Printer -> PrinterContent(vm)
-                PrintTab.Weight -> WeightContent(vm)
+                PrintTab.Estimate -> EstimateContent(vm)
             }
         }
     }

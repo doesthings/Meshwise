@@ -67,6 +67,13 @@ class Engine {
         }
     }
 
+    /**
+     * Slices the shown model like a slicer and estimates print time and material ([parts]: which
+     * parts to include, null for all). Throws CancellationException when [progress] says stop.
+     */
+    fun estimatePrint(settings: EstimateSettings, parts: BooleanArray?, progress: NativeProgress?): PrintEstimate? =
+        NativeLib.nativeEstimatePrint(handle, settings.floats(), settings.ints(), parts, progress)?.let { PrintEstimate.of(it) }
+
     fun buildAnalysis(progress: NativeProgress?): Boolean = NativeLib.nativeBuildAnalysis(handle, progress)
 
     fun meshCheck(): MeshCheck? = NativeLib.nativeMeshCheck(handle)?.let {

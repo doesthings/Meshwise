@@ -4,12 +4,15 @@
 // speed limits, the hotend's flow limit and the minimum layer time. No G-code is generated.
 #pragma once
 
+#include <vector>
+
 #include "model.h"
 
 namespace fsv {
 
 // All lengths in mm, speeds in mm/s, accelerations in mm/s², densities as fractions.
 struct PrintSettings {
+    std::vector<uint8_t> parts;  // which of the model's parts to print (empty: all)
     float layerHeight = 0.2f, firstLayerHeight = 0.2f;
     float outerWidth = 0.42f, innerWidth = 0.45f, infillWidth = 0.45f, solidWidth = 0.42f, topWidth = 0.42f;
     float firstLayerWidth = 0.5f, supportWidth = 0.42f;

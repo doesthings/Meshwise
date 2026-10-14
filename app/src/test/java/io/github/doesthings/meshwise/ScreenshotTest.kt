@@ -224,7 +224,7 @@ class ScreenshotTest {
     fun weight() {
         open(ModelSource.FromAsset("samples/spur_gear.stl"))
         vm.selectTool(Tool.Print)
-        vm.setPrintTab(io.github.doesthings.meshwise.viewer.PrintTab.Weight)
+        vm.setPrintTab(io.github.doesthings.meshwise.viewer.PrintTab.Estimate)
         shoot("11_weight")
     }
 

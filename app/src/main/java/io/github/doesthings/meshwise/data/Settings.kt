@@ -82,11 +82,15 @@ data class SettingsValues(
     val recentsSort: Int = 0,        // 0 last opened, 1 name, 2 size
     val reopenLast: Boolean = false,
     val cadQuality: Int = 1,
-    // Weight
+    // Print estimate
     val density: Int = 0,            // DensityPreset ordinal
-    val infill: Float = 0.2f,
+    val infill: Float = 0.15f,
     val walls: Int = 2,
     val pricePerKg: Float = 20f,
+    val layerHeight: Float = 0.2f,
+    val infillPattern: Int = 1,      // InfillPattern ordinal
+    val supports: Int = 0,           // Supports ordinal
+    val filamentDiameter: Float = 1.75f,
     // Updates
     val updateChecks: Int = UPDATES_DEFAULT,
     val lastUpdateCheck: Long = 0L,
@@ -97,7 +101,8 @@ data class SettingsValues(
 
     /** Everything a "reset settings" should restore, keeping answers the user gave elsewhere. */
     fun resetKeepingState(): SettingsValues = SettingsValues(
-        density = density, infill = infill, walls = walls, pricePerKg = pricePerKg,
+        density = density, infill = infill, walls = walls, pricePerKg = pricePerKg, layerHeight = layerHeight,
+        infillPattern = infillPattern, supports = supports, filamentDiameter = filamentDiameter,
         updateChecks = updateChecks, lastUpdateCheck = lastUpdateCheck, skippedUpdate = skippedUpdate,
     )
 }
@@ -177,6 +182,10 @@ class Settings(context: Context) {
             infill = p.float("infill", d.infill),
             walls = p.int("walls", d.walls),
             pricePerKg = p.float("pricePerKg", d.pricePerKg),
+            layerHeight = p.float("layerHeight", d.layerHeight),
+            infillPattern = p.int("infillPattern", d.infillPattern),
+            supports = p.int("supports", d.supports),
+            filamentDiameter = p.float("filamentDiameter", d.filamentDiameter),
             updateChecks = p.int("updateChecks", d.updateChecks),
             lastUpdateCheck = p.getLong("lastUpdateCheck", d.lastUpdateCheck),
             skippedUpdate = p.string("skippedUpdate", d.skippedUpdate),
@@ -235,6 +244,10 @@ class Settings(context: Context) {
             .putFloat("infill", v.infill)
             .putInt("walls", v.walls)
             .putFloat("pricePerKg", v.pricePerKg)
+            .putFloat("layerHeight", v.layerHeight)
+            .putInt("infillPattern", v.infillPattern)
+            .putInt("supports", v.supports)
+            .putFloat("filamentDiameter", v.filamentDiameter)
             .putInt("updateChecks", v.updateChecks)
             .putLong("lastUpdateCheck", v.lastUpdateCheck)
             .putString("skippedUpdate", v.skippedUpdate)

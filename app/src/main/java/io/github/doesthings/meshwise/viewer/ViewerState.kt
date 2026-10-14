@@ -5,6 +5,7 @@ import io.github.doesthings.meshwise.engine.Affine
 import io.github.doesthings.meshwise.engine.MeasureFeature
 import io.github.doesthings.meshwise.engine.OrientationStats
 import io.github.doesthings.meshwise.engine.PickHit
+import io.github.doesthings.meshwise.engine.PrintEstimate
 import io.github.doesthings.meshwise.engine.ThicknessResult
 import io.github.doesthings.meshwise.engine.Vec3
 
@@ -44,7 +45,7 @@ data class MeasureHover(val x: Float, val y: Float, val feature: MeasureFeature?
 
 enum class AnalyzeTab { Thickness, Overhang, MeshCheck }
 
-enum class PrintTab { Orient, Size, Printer, Weight }
+enum class PrintTab { Orient, Size, Printer, Estimate }
 
 /** Print prep: how the loaded model has been turned and scaled, and how it would print. */
 data class PrintState(
@@ -56,6 +57,15 @@ data class PrintState(
     val suggestions: List<OrientationStats> = emptyList(),
     val suggesting: Boolean = false,
     val showOverhangs: Boolean = false,
+)
+
+/** The print estimate: the latest result, and whether a newer one is being worked out. */
+data class EstimateUi(
+    val running: Boolean = false,
+    val progress: Float = 0f,
+    val result: PrintEstimate? = null,
+    val density: Double = 1.24,  // g/cm³ of the filament the result is for
+    val failed: Boolean = false,
 )
 
 data class ThicknessUi(

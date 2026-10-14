@@ -63,7 +63,7 @@ jobs:
       - name: JVM tests (Robolectric, real native engine)
         run: |
           sudo apt-get install -y -q libegl1 libgles2 > /dev/null
-          ./gradlew :app:testDebugUnitTest --tests '*ViewerFlowTest*' --tests '*EngineReleaseTest*' --tests '*UpdateCheckTest*' --tests '*CustomizationTest*' --tests '*SmartMeasureTest*' --tests '*PrintPrepTest*' -Pfsv.hostLibDir="$PWD/host-native/native/build-host"
+          ./gradlew :app:testDebugUnitTest --tests '*ViewerFlowTest*' --tests '*EngineReleaseTest*' --tests '*UpdateCheckTest*' --tests '*CustomizationTest*' --tests '*SmartMeasureTest*' --tests '*PrintPrepTest*' --tests '*EstimateTest*' -Pfsv.hostLibDir="$PWD/host-native/native/build-host"
       - name: Assemble debug APKs
         run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4

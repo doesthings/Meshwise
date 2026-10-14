@@ -71,5 +71,20 @@ object Fmt {
         else DateFormat.getDateInstance(DateFormat.MEDIUM).format(d)
     }
 
+    /** A print time: "2 h 14 min", "45 min", "3 min 20 s", "1 d 3 h". */
+    fun duration(seconds: Double): String {
+        val s = seconds.coerceAtLeast(0.0).let { kotlin.math.round(it).toLong() }
+        val d = s / 86400
+        val h = (s % 86400) / 3600
+        val m = (s % 3600) / 60
+        return when {
+            d > 0 -> "$d d $h h"
+            h > 0 -> "$h h $m min"
+            m >= 10 -> "$m min"
+            m > 0 -> "$m min ${s % 60} s"
+            else -> "${s % 60} s"
+        }
+    }
+
     fun degrees(rad: Double) = "%.2f°".format(Locale.US, Math.toDegrees(rad))
 }

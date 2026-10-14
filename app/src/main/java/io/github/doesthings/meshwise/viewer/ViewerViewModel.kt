@@ -28,7 +28,10 @@ import io.github.doesthings.meshwise.data.UpdateInfo
 import io.github.doesthings.meshwise.data.Updates
 import io.github.doesthings.meshwise.data.baseName
 import io.github.doesthings.meshwise.data.sha1
+import io.github.doesthings.meshwise.data.Printers
 import io.github.doesthings.meshwise.engine.CameraFrame
+import io.github.doesthings.meshwise.engine.DensityPreset
+import io.github.doesthings.meshwise.engine.Filament
 import io.github.doesthings.meshwise.engine.Engine
 import io.github.doesthings.meshwise.engine.ExportFormat
 import io.github.doesthings.meshwise.engine.MaterialPreset
@@ -1137,6 +1140,53 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun applySuggestion(s: io.github.doesthings.meshwise.engine.OrientationStats) = layFlat(s.down)
+
+    // ------------------------------------------------------------------ print estimate
+
+    private val _estimate = MutableStateFlow(EstimateUi())
+    val estimate = _estimate.asStateFlow()
+    private var estimateJob: Job? = null
+
+    /**
+     * Works out how long the shown model takes to print and how much filament it needs, in the
+     * background; a newer request replaces a running one. [scope]: 0 all parts, 1 the visible
+     * ones, 2 the selected one. Nothing to work out for materials that aren't printed from
+     * filament.
+     */
+    fun requestEstimate(scope: Int) {
+        val info = _model.value ?: return
+        val s = settings.value
+        estimateJob?.cancel()
+        val filament = Filament.of(DensityPreset.entries.getOrElse(s.density) { DensityPreset.PLA })
+        if (filament == null) {
+            _estimate.value = EstimateUi()
+            return
+        }
+        val es = Printers.estimateSettings(s, filament)
+        val parts = when (scope) {
+            1 -> BooleanArray(info.parts.size) { _parts.value.getOrNull(it)?.visible != false }
+            2 -> BooleanArray(info.parts.size) { it == _selected.value }
+            else -> null
+        }
+        _estimate.update { it.copy(running = true, progress = 0f, failed = false) }
+        estimateJob = viewModelScope.launch(Dispatchers.Default) {
+            delay(250)  // settle while sliders move
+            val job = coroutineContext[Job]
+            try {
+                val r = engine.estimatePrint(es, parts, NativeProgress { f ->
+                    _estimate.update { it.copy(progress = f) }
+                    job?.isActive != false
+                })
+                ensureActive()
+                _estimate.value = EstimateUi(result = r, density = filament.density, failed = r == null)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Log.w("Meshwise", "estimate failed", e)
+                _estimate.update { it.copy(running = false, failed = true) }
+            }
+        }
+    }
 
     private fun transformBy(a: Affine) = applyTransform(a * _print.value.transform, record = true, placeOnBed = true)
 
