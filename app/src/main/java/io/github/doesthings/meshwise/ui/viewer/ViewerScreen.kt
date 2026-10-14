@@ -104,7 +104,7 @@ import io.github.doesthings.meshwise.ui.panels.MeasurePanel
 import io.github.doesthings.meshwise.ui.panels.PartsPanel
 import io.github.doesthings.meshwise.ui.panels.SavePanel
 import io.github.doesthings.meshwise.ui.panels.SectionPanel
-import io.github.doesthings.meshwise.ui.panels.WeightPanel
+import io.github.doesthings.meshwise.ui.panels.PrintPanel
 import io.github.doesthings.meshwise.ui.theme.LocalExtraColors
 import io.github.doesthings.meshwise.util.Fmt
 import io.github.doesthings.meshwise.viewer.Screen
@@ -264,7 +264,7 @@ private fun ViewerChrome(vm: ViewerViewModel) {
                         Tool.Parts -> PartsPanel(vm)
                         Tool.Save -> SavePanel(vm)
                         Tool.Color -> ColorPanel(vm)
-                        Tool.Weight -> WeightPanel(vm)
+                        Tool.Print -> PrintPanel(vm)
                         Tool.Measure -> MeasurePanel(vm)
                         Tool.Analyze -> AnalyzePanel(vm)
                         Tool.Info -> InfoPanel(vm)

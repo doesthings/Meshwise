@@ -16,8 +16,8 @@ assemblies, weight estimates and more.
 
 - **Free and open source** (MIT). No ads, no account, no paywall.
 - **STEP and IGES included**, through the Open CASCADE kernel.
-- **Private.** No tracking, and your files never leave your phone. The only network use is an
-  optional update check that is off until you turn it on.
+- **Private.** No tracking, and your files never leave your phone. The only network use is a
+  daily update check (you can turn it off) and downloading an update when you tap Update.
 
 > **Honest note:** Meshwise is vibe coded: I built it with a lot of help from an AI coding
 > assistant. It works well enough, it has automated tests, and I just wanted to share a good
@@ -40,8 +40,8 @@ Meshwise needs Android 8.0 (API 26) or newer with OpenGL ES 3.0. Almost every de
 today has both.
 
 Every release is signed with the same Meshwise certificate, so a new version installs over the
-old one. If you turn on the optional update check, the app tells you when a new version is out
-(see [Privacy](#privacy)). To check a download, run `apksigner verify --print-certs` on it. The SHA-256 must be
+old one. The app tells you when a new version is out, shows what changed, and can download and
+install it for you (see [Privacy](#privacy)). To check a download, run `apksigner verify --print-certs` on it. The SHA-256 must be
 `69:FE:7F:DD:77:48:C2:FA:DD:BE:F4:3C:66:BC:8B:EC:F7:19:AA:AC:CD:D3:40:DE:42:F7:F3:EB:31:4B:4D:11`.
 
 ## Screenshots
@@ -64,13 +64,18 @@ old one. If you turn on the optional update check, the app tells you when a new 
   </tr>
   <tr>
     <td align="center"><img src="docs/screenshots/10_color.png" width="260"><br><sub><b>Color</b>: paint parts, custom colors</sub></td>
-    <td align="center"><img src="docs/screenshots/11_weight.png" width="260"><br><sub><b>Weight</b>: filament, infill, walls, cost</sub></td>
+    <td align="center"><img src="docs/screenshots/11_weight.png" width="260"><br><sub><b>Weight</b> (Print prep): filament, infill, walls, cost</sub></td>
     <td align="center"><img src="docs/screenshots/12_settings.png" width="260"><br><sub><b>Settings</b>: themes, accent colors, controls, units</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/screenshots/13_view.png" width="260"><br><sub><b>View</b>: standard views, lighting, backgrounds, field of view</sub></td>
     <td align="center"><img src="docs/screenshots/14_custom.png" width="260"><br><sub><b>Your layout</b>: accent color, labels, left-handed mode</sub></td>
     <td align="center"><img src="docs/screenshots/15_toolbar.png" width="260"><br><sub><b>Customize toolbar</b>: pick, place and order the tools</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/16_print.png" width="260"><br><sub><b>Print prep</b>: orientation stats and suggestions, build volume</sub></td>
+    <td></td>
+    <td></td>
   </tr>
 </table>
 
@@ -103,6 +108,15 @@ old one. If you turn on the optional update check, the app tells you when a new 
 - Parts list with search, show/hide, isolate, x-ray the rest, and focus
 - Explode slider, plus a manual mode with a 3-axis drag gizmo, per-part hide and undo
 - Paint parts individually or all at once, and assign materials per part
+
+**Print prep** (one Print tool: Orient · Size · Printer · Weight)
+- **Lay flat**: tap any face and the model turns so that face sits on the bed
+- **Suggested orientations**: compares the model's sides and large flat faces by overhang area, contact with the bed and height, and offers the best three
+- Live overhang share, build height and area on the bed for the current orientation, with overhang shading one tap away
+- Rotate in 90° steps, mirror, undo, or go back to the file as it was
+- **Scale** by percent or to an exact size on one side; one-tap fixes for files exported in inches, cm or meters
+- **Printers**: common Bambu Lab, Prusa, Creality and Elegoo printers or a custom size; the build volume is drawn around the model with "fits", "fits turned 90°" or "scale to fit"
+- Exports and projects keep the new orientation and size
 
 **Make it yours**
 - Light, dark or system theme, eight accent colors or Material You, and a pure black mode for OLED screens
@@ -216,10 +230,13 @@ Bug reports help just as much, especially files that don't open or look wrong:
 Meshwise collects nothing. It reads only the files you open and keeps recent files,
 thumbnails, projects and the library in its private storage. Your files never leave your phone.
 
-The app's only network use is the **optional update check**. On first launch Meshwise asks
-whether it may check for updates; the answer is no until you say yes, and you can change it in
-Settings at any time. When it's on, the app asks GitHub for the latest release at most once a
-day. It sends nothing else, and nothing is downloaded until you tap **Download**. The Ko-fi
+The app's only network use is the **update check** and, when you ask for it, the update
+itself. Once a day the app asks GitHub for the list of recent releases; nothing about you or
+your files is sent. If there's a newer version it shows what changed, and you choose
+**Update**, **Not now** or **Skip this version**. Update downloads the APK from the GitHub
+release, checks it against the release's `SHA256SUMS.txt` and hands it to Android's installer,
+which asks you to confirm (and only accepts an update signed with the same key). You can turn
+the check off in Settings. The Ko-fi
 and GitHub buttons open your browser (the Ko-fi button goes through a small redirect page on
 GitHub Pages, so the donation link can change without an app update).
 

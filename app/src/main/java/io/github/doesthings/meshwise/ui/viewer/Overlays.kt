@@ -59,6 +59,8 @@ import io.github.doesthings.meshwise.data.Units
 import io.github.doesthings.meshwise.engine.Bounds
 import io.github.doesthings.meshwise.engine.CameraFrame
 import io.github.doesthings.meshwise.engine.Engine
+import io.github.doesthings.meshwise.data.Printer
+import io.github.doesthings.meshwise.data.Printers
 import io.github.doesthings.meshwise.engine.FeatureKind
 import io.github.doesthings.meshwise.engine.MeasureFeature
 import io.github.doesthings.meshwise.engine.PickHit
@@ -103,6 +105,7 @@ fun OverlayLayer(vm: ViewerViewModel) {
     val units = settings.units
     val insets by vm.viewInsets.collectAsStateWithLifecycle()
     val hover by vm.measureHover.collectAsStateWithLifecycle()
+    val printer = Printers.of(settings)
     val res = LocalContext.current.resources
     // Label texts are prepared here: string resources are not available inside the draw scope.
     val smart = if (measure.mode == MeasureMode.Smart) measure.smartResult else null
@@ -140,12 +143,40 @@ fun OverlayLayer(vm: ViewerViewModel) {
             val c = model!!.parts[selected].bounds.center + vm.partOffset(selected)
             drawGizmo(camera, c, extra.axisX, extra.axisY, extra.axisZ)
         }
+        if (tool == Tool.Print && printer != null && bounds.size.length() > 0f) {
+            val s = bounds.size
+            val color = if (printer.fits(s.x, s.y, s.z)) extra.dimension else Color(0xFFFF6B6B)
+            drawBuildVolume(camera, bounds, printer, color)
+        }
     }
 
     // Drag handles for the explode gizmo.
     if (manual && selected >= 0 && model != null && selected < model!!.parts.size) {
         val c = model!!.parts[selected].bounds.center + vm.partOffset(selected)
         GizmoHandles(camera, c, onStart = { vm.beginPartDrag(selected) }) { axis, delta -> vm.movePart(selected, Vec3.axis(axis) * delta) }
+    }
+}
+
+/** The printer's build volume around the model: the bed outline plus a faint box. */
+private fun DrawScope.drawBuildVolume(cam: CameraFrame, b: Bounds, p: Printer, color: Color) {
+    val c = b.center
+    val x0 = c.x - p.x / 2f
+    val x1 = c.x + p.x / 2f
+    val y0 = c.y - p.y / 2f
+    val y1 = c.y + p.y / 2f
+    val z0 = b.min.z
+    val z1 = z0 + p.z
+    fun line(a: Vec3, e: Vec3, w: Float, alpha: Float) {
+        val pa = cam.project(a) ?: return
+        val pe = cam.project(e) ?: return
+        drawLine(color.copy(alpha = alpha), pa, pe, strokeWidth = w)
+    }
+    val bed = listOf(Vec3(x0, y0, z0), Vec3(x1, y0, z0), Vec3(x1, y1, z0), Vec3(x0, y1, z0))
+    val top = bed.map { Vec3(it.x, it.y, z1) }
+    for (i in 0 until 4) {
+        line(bed[i], bed[(i + 1) % 4], 2.5.dp.toPx(), 0.9f)
+        line(top[i], top[(i + 1) % 4], 1.dp.toPx(), 0.45f)
+        line(bed[i], top[i], 1.dp.toPx(), 0.45f)
     }
 }
 

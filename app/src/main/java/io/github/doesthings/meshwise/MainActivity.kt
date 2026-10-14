@@ -34,7 +34,10 @@ class MainActivity : ComponentActivity() {
                 AppRoot(vm)
             }
         }
-        if (savedInstanceState == null && !handleIntent(intent)) vm.reopenLastIfWanted()
+        if (savedInstanceState == null) {
+            if (!handleIntent(intent)) vm.reopenLastIfWanted()
+            vm.onAppStart()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

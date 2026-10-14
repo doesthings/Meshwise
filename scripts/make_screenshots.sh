@@ -37,6 +37,7 @@ C=(--size 1080x2400 --linescale 1.5)
 "$R" --in "$A/spur_gear.stl" --out "$OUT/11_weight.png" "${C[@]}" $(insets 11_weight)
 "$R" --in "$ASM" --out "$OUT/13_view.png" "${C[@]}" $(insets 13_view) --edges
 "$R" --in "$ASM" --out "$OUT/14_custom.png" "${C[@]}" $(insets 14_custom) --edges --bg 6
+"$R" --in "$ASM" --out "$OUT/16_print.png" "${C[@]}" $(insets 16_print) --edges
 
 T=(--size 320x320 --linescale 1)
 "$R" --in "$ASM" --out "$OUT/thumb_bearing_assembly.png" "${T[@]}" --edges

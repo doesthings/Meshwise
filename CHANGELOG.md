@@ -4,7 +4,33 @@ All notable changes to Meshwise are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] - 2026-10-14
+
+Print prep, and updates that tell you what changed.
+
+### Added
+- **Print tool** (it replaces the Weight button; weight is one of its tabs, so the bottom bar
+  keeps six buttons):
+  - **Orient**: tap a face to lay it flat on the bed; rotate in 90° steps; mirror; undo; back to
+    the file as it was. Live overhang share, build height and area on the bed, with the overhang
+    shading one tap away.
+  - **Suggest** compares the axis directions and the model's large flat faces by overhang area,
+    contact with the bed and height, and offers the best three. It marks the current
+    orientation when that is already among the best.
+  - **Size**: scale by percent or to an exact size on one side; one-tap fixes for files exported
+    in inches, cm or meters.
+  - **Printer**: Bambu Lab, Prusa, Creality and Elegoo presets or a custom size; the build volume
+    is drawn around the model with "fits", "fits turned 90°" or "too big" and "scale to fit".
+  - Exports and projects keep the new orientation and size.
+- **Updates**: the update dialog shows what changed in every version you missed. **Update**
+  downloads the APK from GitHub, checks it against the release checksums and opens Android's
+  installer. A known update is also offered in Settings.
+- Roadmap: a "no bloat" section on how new features are added.
+
+### Changed
+- The daily update check is on by default (no first-launch question); it can be turned off in
+  Settings. People who answered "No thanks" before keep it off.
+- Saved toolbar layouts with the old Weight button get the Print button in its place.
 
 ### Fixed
 - Coordinates that round to zero show as 0.00 instead of -0.00.

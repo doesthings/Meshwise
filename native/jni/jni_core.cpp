@@ -11,6 +11,7 @@
 #include "analysis.h"
 #include "engine.h"
 #include "exporters.h"
+#include "print_prep.h"
 #include "loaders.h"
 #include "jni_strings.h"
 
@@ -36,11 +37,21 @@ struct EngineHandle {
         std::lock_guard<std::mutex> lk(mu);
         thickness = std::move(t);
     }
+    // The model as loaded; re-orienting and scaling always start from it.
+    std::shared_ptr<const Model> original() const {
+        std::lock_guard<std::mutex> lk(mu);
+        return orig;
+    }
+    void setOriginal(std::shared_ptr<const Model> m) {
+        std::lock_guard<std::mutex> lk(mu);
+        orig = std::move(m);
+    }
 
 private:
     mutable std::mutex mu;
     std::shared_ptr<const Topology> topo;
     std::shared_ptr<const ThicknessResult> thickness;
+    std::shared_ptr<const Model> orig;
 };
 
 struct ModelHandle {
@@ -264,13 +275,77 @@ FSV_JNI(void, nativeSetModel)(JNIEnv*, jclass, jlong h, jlong m, jboolean resetV
     eh->setTopology(nullptr);
     eh->setThickness(nullptr);
     if (!m) {
+        eh->setOriginal(nullptr);
         eh->engine.setModel(nullptr, false);
         return;
     }
     // The engine shares ownership; the Kotlin handle becomes empty.
     std::shared_ptr<const Model> sp(M(m)->model.release());
     delete M(m);
+    eh->setOriginal(sp);
     eh->engine.setModel(sp, resetView == JNI_TRUE);
+}
+
+// A transformed copy of the loaded model (see transformModel), as a new model handle; 0 when
+// no model is loaded. `affine` is row-major 3x4; `outOffset` receives the bed placement.
+FSV_JNI(jlong, nativeTransformModel)(JNIEnv* env, jclass, jlong h, jfloatArray affine, jboolean placeOnBed, jfloatArray outOffset) {
+    if (!h) return 0;
+    return guarded(env, [&]() -> jlong {
+        auto orig = E(h)->original();
+        if (!orig) return 0;
+        float A[12];
+        env->GetFloatArrayRegion(affine, 0, 12, A);
+        Vec3 off;
+        auto out = std::make_unique<ModelHandle>();
+        out->model = transformModel(*orig, A, placeOnBed == JNI_TRUE, &off);
+        float o[3] = {off.x, off.y, off.z};
+        env->SetFloatArrayRegion(outOffset, 0, 3, o);
+        return (jlong)out.release();
+    }, (jlong)0);
+}
+
+// Shows a transformed model without replacing the original (camera and part list stay).
+FSV_JNI(void, nativeSetTransformedModel)(JNIEnv*, jclass, jlong h, jlong m) {
+    if (!h || !m) {
+        if (m) delete M(m);
+        return;
+    }
+    EngineHandle* eh = E(h);
+    eh->setTopology(nullptr);
+    eh->setThickness(nullptr);
+    std::shared_ptr<const Model> sp(M(m)->model.release());
+    delete M(m);
+    eh->engine.setModel(sp, false);
+}
+
+// [overhangArea, contactArea, totalArea, height, score] with `down` pointing at the bed.
+FSV_JNI(jfloatArray, nativeOrientationStats)(JNIEnv* env, jclass, jlong h, jfloat dx, jfloat dy, jfloat dz, jfloat angle) {
+    if (!h) return nullptr;
+    return guarded(env, [&]() -> jfloatArray {
+        auto model = E(h)->engine.model();
+        if (!model) return nullptr;
+        OrientationStats s = orientationStats(*model, Vec3(dx, dy, dz), angle);
+        float v[5] = {(float)s.overhangArea, (float)s.contactArea, (float)s.totalArea, s.height, s.score};
+        jfloatArray arr = env->NewFloatArray(5);
+        env->SetFloatArrayRegion(arr, 0, 5, v);
+        return arr;
+    }, (jfloatArray) nullptr);
+}
+
+// (down xyz, overhangArea, contactArea, totalArea, height, score) per suggestion, best first.
+FSV_JNI(jfloatArray, nativeSuggestOrientations)(JNIEnv* env, jclass, jlong h, jfloat angle, jint count, jobject progress) {
+    if (!h) return nullptr;
+    return guarded(env, [&]() -> jfloatArray {
+        auto model = E(h)->engine.model();
+        if (!model) return nullptr;
+        auto list = suggestOrientations(*model, angle, count, Progress(makeProgress(env, progress)));
+        std::vector<float> v;
+        for (const OrientationStats& s : list)
+            v.insert(v.end(), {s.down.x, s.down.y, s.down.z, (float)s.overhangArea, (float)s.contactArea, (float)s.totalArea, s.height, s.score});
+        jfloatArray arr = env->NewFloatArray((jsize)v.size());
+        env->SetFloatArrayRegion(arr, 0, (jsize)v.size(), v.data());
+        return arr;
+    }, (jfloatArray) nullptr);
 }
 
 // ---------------------------------------------------------------- analysis

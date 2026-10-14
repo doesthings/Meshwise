@@ -223,7 +223,8 @@ class ScreenshotTest {
     @Test
     fun weight() {
         open(ModelSource.FromAsset("samples/spur_gear.stl"))
-        vm.selectTool(Tool.Weight)
+        vm.selectTool(Tool.Print)
+        vm.setPrintTab(io.github.doesthings.meshwise.viewer.PrintTab.Weight)
         shoot("11_weight")
     }
 
@@ -253,6 +254,16 @@ class ScreenshotTest {
         vm.openSettings()
         vm.navigate(Screen.Toolbar)
         shoot("15_toolbar", null)
+    }
+
+    @Test
+    fun printPrep() {
+        vm.updateSettings { it.copy(printer = "Prusa MK4 / MK4S") }
+        openAssembly()
+        vm.selectTool(Tool.Print)
+        vm.suggestOrientations()
+        awaitUntil { !vm.print.value.suggesting && vm.print.value.stats != null }
+        shoot("16_print")
     }
 
     @Test

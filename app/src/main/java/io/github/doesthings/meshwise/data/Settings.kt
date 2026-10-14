@@ -12,14 +12,18 @@ enum class Units(val label: String, val factor: Double, val suffix: String) {
 
 /** Buttons that can be placed in the bottom dock or the side cluster of the 3D view. */
 enum class ToolbarItem {
-    Files, Save, Color, Weight, Measure, Analyze, View, Material, Section, Explode, Parts, Info, Snapshot, Turntable;
+    Files, Save, Color, Print, Measure, Analyze, View, Material, Section, Explode, Parts, Info, Snapshot, Turntable;
 
     companion object {
-        val DEFAULT_DOCK = listOf(Files, Save, Color, Weight, Measure, Analyze)
+        val DEFAULT_DOCK = listOf(Files, Save, Color, Print, Measure, Analyze)
         val DEFAULT_SIDE = listOf(View, Material, Section, Explode, Parts)
 
         fun decode(s: String, fallback: List<ToolbarItem>): List<ToolbarItem> =
-            if (s.isBlank()) fallback else s.split(',').mapNotNull { n -> entries.firstOrNull { it.name == n } }.distinct()
+            if (s.isBlank()) fallback
+            else s.split(',').mapNotNull { n -> entries.firstOrNull { it.name == LEGACY.getOrDefault(n, n) } }.distinct()
+
+        /** Names used by older versions. */
+        private val LEGACY = mapOf("Weight" to "Print")
 
         fun encode(items: List<ToolbarItem>): String = items.joinToString(",") { it.name }
     }
@@ -58,6 +62,11 @@ data class SettingsValues(
     val modelColor: Int = 0,         // ARGB for models without colours; 0 = built-in grey
     val defaultMaterial: Int = 0,    // MaterialPreset ordinal
     val selectColor: Int = 0xFF7FB3FF.toInt(),
+    // Print prep
+    val printer: String = "",        // Printers preset name, Printers.CUSTOM, or "" for none
+    val bedX: Float = 220f,
+    val bedY: Float = 220f,
+    val bedZ: Float = 250f,
     // Controls
     val sensitivity: Float = 1f,
     val invertX: Boolean = false,
@@ -79,7 +88,7 @@ data class SettingsValues(
     val walls: Int = 2,
     val pricePerKg: Float = 20f,
     // Updates
-    val updateChecks: Int = UPDATES_NOT_ASKED,
+    val updateChecks: Int = UPDATES_DEFAULT,
     val lastUpdateCheck: Long = 0L,
     val skippedUpdate: String = "",
 ) {
@@ -93,8 +102,8 @@ data class SettingsValues(
     )
 }
 
-/** [SettingsValues.updateChecks]: the user hasn't been asked yet, said yes, or said no. */
-const val UPDATES_NOT_ASKED = 0
+/** [SettingsValues.updateChecks]: untouched (checks run), turned on, or turned off. */
+const val UPDATES_DEFAULT = 0
 const val UPDATES_ON = 1
 const val UPDATES_OFF = 2
 
@@ -148,6 +157,10 @@ class Settings(context: Context) {
             modelColor = p.int("modelColor", d.modelColor),
             defaultMaterial = p.int("defaultMaterial", d.defaultMaterial),
             selectColor = p.int("selectColor", d.selectColor),
+            printer = p.string("printer", d.printer),
+            bedX = p.float("bedX", d.bedX),
+            bedY = p.float("bedY", d.bedY),
+            bedZ = p.float("bedZ", d.bedZ),
             sensitivity = p.float("sensitivity", d.sensitivity),
             invertX = p.bool("invertX", d.invertX),
             invertY = p.bool("invertY", d.invertY),
@@ -202,6 +215,10 @@ class Settings(context: Context) {
             .putInt("modelColor", v.modelColor)
             .putInt("defaultMaterial", v.defaultMaterial)
             .putInt("selectColor", v.selectColor)
+            .putString("printer", v.printer)
+            .putFloat("bedX", v.bedX)
+            .putFloat("bedY", v.bedY)
+            .putFloat("bedZ", v.bedZ)
             .putFloat("sensitivity", v.sensitivity)
             .putBoolean("invertX", v.invertX)
             .putBoolean("invertY", v.invertY)

@@ -302,7 +302,7 @@ fun estimateWeight(volumeMm3: Double, areaMm2: Double, preset: DensityPreset, in
 }
 
 @Composable
-fun WeightPanel(vm: ViewerViewModel) {
+fun WeightContent(vm: ViewerViewModel) {
     val s by vm.settings.collectAsStateWithLifecycle()
     val model by vm.model.collectAsStateWithLifecycle()
     val parts by vm.parts.collectAsStateWithLifecycle()
@@ -322,8 +322,8 @@ fun WeightPanel(vm: ViewerViewModel) {
     }
     val r = estimateWeight(included.sumOf { abs(it.volume) }, included.sumOf { it.area }, preset, s.infill, s.walls, s.pricePerKg)
     val scopeLabels = listOf(stringResource(R.string.scope_all), stringResource(R.string.scope_visible), stringResource(R.string.scope_selected))
-    ToolPanel(stringResource(R.string.weight_title), Icons.Rounded.Scale, onClose = { vm.selectTool(Tool.None) }) {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    run {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (info.parts.size > 1) {
                 Segmented(
                     if (selected >= 0) listOf(0, 1, 2) else listOf(0, 1), scope,

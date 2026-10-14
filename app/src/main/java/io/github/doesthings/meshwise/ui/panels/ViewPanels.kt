@@ -60,6 +60,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.doesthings.meshwise.R
@@ -282,7 +283,7 @@ fun SectionPanel(vm: ViewerViewModel) {
 }
 
 @Composable
-fun NumberField(value: Float, onCommit: (Float) -> Unit, digits: Int = 1, modifier: Modifier = Modifier) {
+fun NumberField(value: Float, onCommit: (Float) -> Unit, digits: Int = 1, modifier: Modifier = Modifier, width: Dp = 96.dp) {
     val scheme = MaterialTheme.colorScheme
     var text by remember { mutableStateOf("") }
     var focused by remember { mutableStateOf(false) }
@@ -302,7 +303,7 @@ fun NumberField(value: Float, onCommit: (Float) -> Unit, digits: Int = 1, modifi
             focus.clearFocus()
         }),
         modifier = modifier
-            .width(96.dp)
+            .then(if (width != Dp.Unspecified) Modifier.width(width) else Modifier)
             .clip(RoundedCornerShape(10.dp))
             .background(scheme.onSurface.copy(alpha = 0.07f))
             .border(1.dp, scheme.primary.copy(alpha = 0.6f), RoundedCornerShape(10.dp))

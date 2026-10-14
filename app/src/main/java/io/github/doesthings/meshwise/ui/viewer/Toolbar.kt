@@ -10,7 +10,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Save
-import androidx.compose.material.icons.rounded.Scale
+import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material.icons.rounded._360
 import androidx.compose.material.icons.rounded.WbSunny
@@ -25,7 +25,7 @@ val ToolbarItem.icon: ImageVector
         ToolbarItem.Files -> Icons.Rounded.FolderOpen
         ToolbarItem.Save -> Icons.Rounded.Save
         ToolbarItem.Color -> Icons.Rounded.Palette
-        ToolbarItem.Weight -> Icons.Rounded.Scale
+        ToolbarItem.Print -> Icons.Rounded.Print
         ToolbarItem.Measure -> Icons.Rounded.Straighten
         ToolbarItem.Analyze -> Icons.Rounded.Insights
         ToolbarItem.View -> Icons.Rounded.WbSunny
@@ -44,7 +44,7 @@ val ToolbarItem.label: Int
         ToolbarItem.Files -> R.string.label_files
         ToolbarItem.Save -> R.string.label_save
         ToolbarItem.Color -> R.string.label_color
-        ToolbarItem.Weight -> R.string.label_weight
+        ToolbarItem.Print -> R.string.label_print
         ToolbarItem.Measure -> R.string.label_measure
         ToolbarItem.Analyze -> R.string.label_analyze
         ToolbarItem.View -> R.string.label_view
@@ -62,7 +62,7 @@ val ToolbarItem.longLabel: Int
         ToolbarItem.Files -> R.string.tool_files
         ToolbarItem.Save -> R.string.tool_save
         ToolbarItem.Color -> R.string.tool_color
-        ToolbarItem.Weight -> R.string.tool_weight
+        ToolbarItem.Print -> R.string.tool_print
         ToolbarItem.Measure -> R.string.tool_measure
         ToolbarItem.Analyze -> R.string.tool_analyze
         ToolbarItem.View -> R.string.tool_lighting
@@ -80,7 +80,7 @@ val ToolbarItem.tool: Tool?
     get() = when (this) {
         ToolbarItem.Save -> Tool.Save
         ToolbarItem.Color -> Tool.Color
-        ToolbarItem.Weight -> Tool.Weight
+        ToolbarItem.Print -> Tool.Print
         ToolbarItem.Measure -> Tool.Measure
         ToolbarItem.Analyze -> Tool.Analyze
         ToolbarItem.View -> Tool.Lighting

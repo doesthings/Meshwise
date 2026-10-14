@@ -1,6 +1,9 @@
 package io.github.doesthings.meshwise.ui
 
 import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.core.content.FileProvider
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -35,7 +38,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.doesthings.meshwise.R
-import io.github.doesthings.meshwise.data.UPDATES_NOT_ASKED
 import io.github.doesthings.meshwise.ui.components.openUrl
 import io.github.doesthings.meshwise.ui.home.HomeScreen
 import io.github.doesthings.meshwise.ui.library.LibraryScreen
@@ -55,6 +57,7 @@ fun AppRoot(vm: ViewerViewModel) {
     val loading by vm.loading.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val update by vm.update.collectAsStateWithLifecycle()
+    val updatePrompt by vm.updatePrompt.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -69,6 +72,22 @@ fun AppRoot(vm: ViewerViewModel) {
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(Intent.createChooser(send, null))
+                }
+                is UiEvent.Install -> {
+                    if (!context.packageManager.canRequestPackageInstalls()) {
+                        // Android asks the user once to let Meshwise install updates.
+                        context.startActivity(
+                            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                        snackbar.showSnackbar(context.getString(R.string.update_allow_install))
+                    } else {
+                        val uri = FileProvider.getUriForFile(context, context.packageName + ".files", e.file)
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
                 }
             }
         }
@@ -106,25 +125,7 @@ fun AppRoot(vm: ViewerViewModel) {
 
         loading?.let { LoadingOverlay(it, onCancel = vm::cancelLoading) }
 
-        UpdateDialogs(vm, askNow = screen == Screen.Home && loading == null && settings.updateChecks == UPDATES_NOT_ASKED)
-        update?.let { info ->
-            AlertDialog(
-                onDismissRequest = { vm.dismissUpdate(skip = false) },
-                title = { Text(stringResource(R.string.update_available_title, info.version)) },
-                text = { Text(stringResource(R.string.update_available_body, vm.currentVersion)) },
-                confirmButton = {
-                    Button(onClick = { openUrl(context, info.downloadUrl); vm.dismissUpdate(skip = false) }) {
-                        Text(stringResource(R.string.update_download))
-                    }
-                },
-                dismissButton = {
-                    Row {
-                        TextButton(onClick = { vm.dismissUpdate(skip = true) }) { Text(stringResource(R.string.update_skip)) }
-                        TextButton(onClick = { vm.dismissUpdate(skip = false) }) { Text(stringResource(R.string.update_later)) }
-                    }
-                },
-            )
-        }
+        if (updatePrompt) update?.let { info -> UpdateDialog(vm, info, onOpenPage = { openUrl(context, info.pageUrl); vm.dismissUpdate(skip = false) }) }
 
         SnackbarHost(
             snackbar,
@@ -139,18 +140,4 @@ fun Modifier.blockTouches(): Modifier = this.pointerInput(Unit) {
     awaitPointerEventScope {
         while (true) awaitPointerEvent()
     }
-}
-
-/** Asks once whether Meshwise may check GitHub for updates. Closing the dialog asks again next launch. */
-@Composable
-private fun UpdateDialogs(vm: ViewerViewModel, askNow: Boolean) {
-    var dismissed by rememberSaveable { mutableStateOf(false) }
-    if (!askNow || dismissed) return
-    AlertDialog(
-        onDismissRequest = { dismissed = true },
-        title = { Text(stringResource(R.string.update_ask_title)) },
-        text = { Text(stringResource(R.string.update_ask_body)) },
-        confirmButton = { Button(onClick = { vm.setUpdateChecks(true) }) { Text(stringResource(R.string.update_ask_yes)) } },
-        dismissButton = { TextButton(onClick = { vm.setUpdateChecks(false) }) { Text(stringResource(R.string.update_ask_no)) } },
-    )
 }

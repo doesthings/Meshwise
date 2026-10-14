@@ -1,14 +1,16 @@
 package io.github.doesthings.meshwise.viewer
 
 import io.github.doesthings.meshwise.data.LoadStage
+import io.github.doesthings.meshwise.engine.Affine
 import io.github.doesthings.meshwise.engine.MeasureFeature
+import io.github.doesthings.meshwise.engine.OrientationStats
 import io.github.doesthings.meshwise.engine.PickHit
 import io.github.doesthings.meshwise.engine.ThicknessResult
 import io.github.doesthings.meshwise.engine.Vec3
 
 enum class Screen { Home, Viewer, Settings, Library, About, Toolbar }
 
-enum class Tool { None, Lighting, Material, Section, Explode, Parts, Save, Color, Weight, Measure, Analyze, Info }
+enum class Tool { None, Lighting, Material, Section, Explode, Parts, Save, Color, Print, Measure, Analyze, Info }
 
 data class LoadingState(val name: String, val stage: LoadStage, val progress: Float)
 
@@ -42,6 +44,20 @@ data class MeasureHover(val x: Float, val y: Float, val feature: MeasureFeature?
 
 enum class AnalyzeTab { Thickness, Overhang, MeshCheck }
 
+enum class PrintTab { Orient, Size, Printer, Weight }
+
+/** Print prep: how the loaded model has been turned and scaled, and how it would print. */
+data class PrintState(
+    val tab: PrintTab = PrintTab.Orient,
+    val transform: Affine = Affine.IDENTITY,   // applied to the model as loaded
+    val undo: List<Affine> = emptyList(),
+    val busy: Boolean = false,
+    val stats: OrientationStats? = null,       // the current orientation
+    val suggestions: List<OrientationStats> = emptyList(),
+    val suggesting: Boolean = false,
+    val showOverhangs: Boolean = false,
+)
+
 data class ThicknessUi(
     val computing: Boolean = false,
     val progress: Float = 0f,
@@ -58,4 +74,14 @@ data class OffsetEdit(val part: Int, val before: Vec3)
 sealed interface UiEvent {
     data class Message(val text: String) : UiEvent
     data class Share(val uri: android.net.Uri, val mime: String) : UiEvent
+    /** A downloaded update is ready for Android's installer. */
+    data class Install(val file: java.io.File) : UiEvent
+}
+
+/** Progress of an in-app update. */
+sealed interface UpdateStep {
+    data object Idle : UpdateStep
+    data class Downloading(val read: Long, val total: Long) : UpdateStep
+    data class Ready(val version: String, val file: java.io.File) : UpdateStep
+    data class Failed(val message: String) : UpdateStep
 }

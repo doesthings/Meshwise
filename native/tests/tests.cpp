@@ -13,6 +13,7 @@
 #include "bvh.h"
 #include "camera.h"
 #include "feature_finder.h"
+#include "print_prep.h"
 #include "engine.h"
 #include "fsm_format.h"
 #include "exporters.h"
@@ -492,6 +493,50 @@ int main() {
         CHECK(f.kind == FeatureKind::Sphere);
         CHECK_NEAR(f.radius, 6.0, 1e-3);
         CHECK(!f.inner);
+    });
+
+    test("print prep: rotate, scale and mirror keep the model sound", [] {
+        auto box = load(binaryStl(boxTris({0, 0, 0}, {20, 10, 5})), "stl");
+        // 90° about X: Y becomes Z.
+        const float rotX[12] = {1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0};
+        Vec3 off;
+        auto r = transformModel(*box, rotX, true, &off);
+        Vec3 sz = r->bounds.size();
+        CHECK_NEAR(sz.x, 20.0, 1e-4);
+        CHECK_NEAR(sz.y, 5.0, 1e-4);
+        CHECK_NEAR(sz.z, 10.0, 1e-4);
+        CHECK_NEAR(r->bounds.min.z, 0.0, 1e-4);
+        CHECK_NEAR(r->bounds.center().x, 0.0, 1e-4);
+        CHECK_NEAR(r->totalVolume(), 1000.0, 1e-2);
+        const float scale2[12] = {2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0};
+        auto s = transformModel(*box, scale2, false, nullptr);
+        CHECK_NEAR(s->totalVolume(), 8000.0, 1e-1);
+        CHECK_NEAR(s->totalArea(), 4.0 * box->totalArea(), 1e-2);
+        const float mirror[12] = {-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0};
+        auto mi = transformModel(*box, mirror, false, nullptr);
+        CHECK_NEAR(mi->totalVolume(), 1000.0, 1e-2);  // winding flipped: still outward
+        CHECK_NEAR(mi->bounds.min.x, -20.0, 1e-4);
+    });
+
+    test("print prep: orientation stats and suggestions", [] {
+        auto box = load(binaryStl(boxTris({0, 0, 0}, {20, 10, 5})), "stl");
+        OrientationStats flat = orientationStats(*box, Vec3(0, 0, -1), 45.f);
+        CHECK_NEAR(flat.contactArea, 200.0, 1e-2);
+        CHECK_NEAR(flat.overhangArea, 0.0, 1e-6);
+        CHECK_NEAR(flat.height, 5.0, 1e-4);
+        // A mushroom: thin stem under a wide cap. Upright, the cap's underside overhangs;
+        // upside down, the cap sits flat on the bed.
+        auto stem = boxTris({-2, -2, 0}, {2, 2, 10});
+        auto cap = boxTris({-10, -10, 10}, {10, 10, 12});
+        stem.insert(stem.end(), cap.begin(), cap.end());
+        auto mush = load(binaryStl(stem), "stl");
+        OrientationStats upright = orientationStats(*mush, Vec3(0, 0, -1), 45.f);
+        CHECK(upright.overhangArea > 300.0);
+        auto best = suggestOrientations(*mush, 45.f, 3, Progress());
+        CHECK(!best.empty());
+        CHECK_NEAR(best[0].down.z, 1.0, 1e-3);
+        CHECK(best[0].overhangArea < upright.overhangArea);
+        CHECK(best.size() <= 3);
     });
 
     test("camera: fit, project centre, zoom anchor", [] {

@@ -33,15 +33,18 @@ import io.github.doesthings.meshwise.engine.Engine
 import io.github.doesthings.meshwise.engine.ExportFormat
 import io.github.doesthings.meshwise.engine.MaterialPreset
 import io.github.doesthings.meshwise.engine.MeasureFeature
-import io.github.doesthings.meshwise.engine.MeshCheck
+import io.github.doesthings.meshwise.engine.Affine
+import io.github.doesthings.meshwise.engine.FeatureKind
 import io.github.doesthings.meshwise.engine.ModelInfo
+import io.github.doesthings.meshwise.engine.NativeLib
+import io.github.doesthings.meshwise.engine.Vec3
+import io.github.doesthings.meshwise.engine.MeshCheck
 import io.github.doesthings.meshwise.engine.NativeProgress
 import io.github.doesthings.meshwise.engine.Palette
 import io.github.doesthings.meshwise.engine.PickHit
 import io.github.doesthings.meshwise.engine.RenderOptions
 import io.github.doesthings.meshwise.engine.ShadingMode
 import io.github.doesthings.meshwise.engine.StandardView
-import io.github.doesthings.meshwise.engine.Vec3
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -118,6 +121,8 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     private val _measure = MutableStateFlow(MeasureState())
     val measure = _measure.asStateFlow()
     private val _measureHover = MutableStateFlow<MeasureHover?>(null)
+    private val _print = MutableStateFlow(PrintState())
+    val print = _print.asStateFlow()
     val measureHover = _measureHover.asStateFlow()
     private val _showDimensions = MutableStateFlow(false)
     val showDimensions = _showDimensions.asStateFlow()
@@ -162,33 +167,42 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     // ------------------------------------------------------------------ updates
 
     private val _update = MutableStateFlow<UpdateInfo?>(null)
-    /** A newer release to offer, or null. */
+    /** The newest release when it is newer than this app (it stays known after "Not now"). */
     val update: StateFlow<UpdateInfo?> = _update.asStateFlow()
+    private val _updatePrompt = MutableStateFlow(false)
+    /** Whether the update dialog is showing. */
+    val updatePrompt: StateFlow<Boolean> = _updatePrompt.asStateFlow()
+    private val _updateStep = MutableStateFlow<UpdateStep>(UpdateStep.Idle)
+    val updateStep: StateFlow<UpdateStep> = _updateStep.asStateFlow()
 
     /** Fetches the newest release newer than the given version; replaceable in tests. */
     var updateSource: (currentVersion: String) -> UpdateInfo? = Updates::fetchLatest
+    /** Downloads an update's APK; replaceable in tests. */
+    var updateDownloader: (UpdateInfo, File, (Long, Long) -> Unit, () -> Boolean) -> Unit = Updates::download
     var currentVersion: String = BuildConfig.VERSION_NAME
     var now: () -> Long = System::currentTimeMillis
     private var updateJob: Job? = null
+    private var downloadJob: Job? = null
 
-    init {
-        if (settings.value.updateChecks == UPDATES_ON) checkForUpdates(manual = false)
+    /** Called when the app starts: the daily check, unless the user turned it off. */
+    fun onAppStart() {
+        checkForUpdates(manual = false)
     }
 
-    /** The answer to "Check for updates?" (first launch, or the switch in Settings). */
+    /** The "Check for updates" switch in Settings (on unless the user turns it off). */
     fun setUpdateChecks(on: Boolean) {
         updateSettings { it.copy(updateChecks = if (on) UPDATES_ON else UPDATES_OFF) }
         if (on) checkForUpdates(manual = false)
     }
 
     /**
-     * Asks GitHub for the latest release. Automatic checks run at most once a day, stay silent
-     * on errors and skip a version the user chose to skip; a manual check always runs and
-     * reports what it found.
+     * Asks GitHub for new releases. Automatic checks run at most once a day, stay silent on
+     * errors and skip a version the user chose to skip; a manual check always runs and reports
+     * what it found.
      */
     fun checkForUpdates(manual: Boolean) {
         val s = settings.value
-        if (!manual && (s.updateChecks != UPDATES_ON || now() - s.lastUpdateCheck < Updates.CHECK_INTERVAL_MS)) return
+        if (!manual && (s.updateChecks == UPDATES_OFF || now() - s.lastUpdateCheck < Updates.CHECK_INTERVAL_MS)) return
         if (updateJob?.isActive == true) return
         updateJob = viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { runCatching { updateSource(currentVersion) } }
@@ -197,16 +211,55 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
             when {
                 result.isFailure -> if (manual) emit(app.getString(R.string.update_check_failed))
                 info == null -> if (manual) emit(app.getString(R.string.update_none, currentVersion))
-                manual || info.version != settings.value.skippedUpdate -> _update.value = info
+                else -> {
+                    if (info.version != _update.value?.version) _updateStep.value = UpdateStep.Idle
+                    _update.value = info
+                    if (manual || info.version != settings.value.skippedUpdate) _updatePrompt.value = true
+                }
             }
         }
     }
 
-    /** Closes the update prompt; [skip] stops automatic checks from offering this version again. */
+    /** Shows the dialog for a known update again (Settings → Update). */
+    fun showUpdate() {
+        if (_update.value != null) _updatePrompt.value = true
+    }
+
+    /** Closes the update dialog; [skip] stops automatic checks from offering this version again. */
     fun dismissUpdate(skip: Boolean) {
         val info = _update.value ?: return
         if (skip) updateSettings { it.copy(skippedUpdate = info.version) }
-        _update.value = null
+        downloadJob?.cancel()
+        if (_updateStep.value !is UpdateStep.Ready) _updateStep.value = UpdateStep.Idle
+        _updatePrompt.value = false
+    }
+
+    /** Downloads the update, checks it against the release checksums and starts installing it. */
+    fun startUpdate() {
+        val info = _update.value ?: return
+        (_updateStep.value as? UpdateStep.Ready)?.takeIf { it.version == info.version && it.file.exists() }?.let { r ->
+            _events.tryEmit(UiEvent.Install(r.file))
+            return
+        }
+        if (downloadJob?.isActive == true) return
+        val target = File(File(app.cacheDir, "updates"), "Meshwise-${info.version}.apk")
+        _updateStep.value = UpdateStep.Downloading(0, info.apkSize)
+        downloadJob = viewModelScope.launch {
+            val job = coroutineContext[Job]
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    updateDownloader(info, target, { read, total -> _updateStep.value = UpdateStep.Downloading(read, total) }) { job?.isActive == false }
+                }
+            }
+            if (job?.isActive == false) return@launch
+            result.onSuccess {
+                _updateStep.value = UpdateStep.Ready(info.version, target)
+                _events.emit(UiEvent.Install(target))
+            }.onFailure { e ->
+                Log.w(TAG, "update download failed", e)
+                _updateStep.value = UpdateStep.Failed(e.message ?: e.javaClass.simpleName)
+            }
+        }
     }
 
     // ------------------------------------------------------------------ GL host
@@ -425,7 +478,13 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         thumbnailPending = true
         requestRender()
 
-        // Background analysis (BVH for picking, topology for edges and checks).
+        _print.value = PrintState(tab = _print.value.tab)
+        startAnalysis()
+    }
+
+    /** Background analysis (BVH for picking, topology for edges, checks and measuring). */
+    private fun startAnalysis() {
+        analysisJob?.cancel()
         analysisJob = viewModelScope.launch(Dispatchers.Default) {
             val job = coroutineContext[Job]
             val ok = try {
@@ -511,7 +570,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
             ToolbarItem.Files -> navigate(Screen.Home)
             ToolbarItem.Save -> selectTool(Tool.Save)
             ToolbarItem.Color -> selectTool(Tool.Color)
-            ToolbarItem.Weight -> selectTool(Tool.Weight)
+            ToolbarItem.Print -> selectTool(Tool.Print)
             ToolbarItem.Measure -> selectTool(Tool.Measure)
             ToolbarItem.Analyze -> selectTool(Tool.Analyze)
             ToolbarItem.View -> selectTool(Tool.Lighting)
@@ -558,6 +617,11 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         }
         if (next == Tool.Analyze) applyAnalyzeMode()
         if (prev == Tool.Explode && next != Tool.Explode) setManualExplode(false)
+        if (prev == Tool.Print && next != Tool.Print && _print.value.showOverhangs) updateOptions { it.copy(mode = ShadingMode.Shaded) }
+        if (next == Tool.Print) {
+            if (_print.value.showOverhangs) updateOptions { it.copy(mode = ShadingMode.Overhang, overhangAngle = _overhang.value.angle) }
+            refreshPrintStats()
+        }
         if (next != Tool.Measure && prev == Tool.Measure) {
             _measure.update { it.copy(points = emptyList(), features = emptyList()) }
             _measureHover.value = null
@@ -607,9 +671,16 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // ---- gestures from the surface (UI thread)
-    val instantTaps: Boolean get() = _tool.value == Tool.Measure || _tool.value == Tool.Color
+    val instantTaps: Boolean get() = _tool.value == Tool.Measure || _tool.value == Tool.Color || layFlatTaps
+    private val layFlatTaps: Boolean get() = _tool.value == Tool.Print && _print.value.tab == PrintTab.Orient
 
     fun onTap(x: Float, y: Float) {
+        if (layFlatTaps) {
+            // Lay flat: the tapped face (or the surface under the finger) goes down on the bed.
+            val f = engine.measurePick(x, y, snapPx) ?: return
+            layFlat(if (f.kind == FeatureKind.Plane) f.axis else f.normal)
+            return
+        }
         if (_tool.value == Tool.Measure) {
             measureAt(x, y)
             requestRender()
@@ -1010,6 +1081,132 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
             val r = engine.overhang(a) ?: return@launch
             ensureActive() // a newer angle superseded this one
             _overhang.update { it.copy(overhangArea = r.first, totalArea = r.second) }
+        }
+    }
+
+    // ------------------------------------------------------------------ print prep
+
+    fun setPrintTab(t: PrintTab) {
+        _print.update { it.copy(tab = t) }
+        if (t == PrintTab.Orient) refreshPrintStats()
+    }
+
+    /** Turns the model so that the surface with outward normal [normal] lies on the bed. */
+    fun layFlat(normal: Vec3) = transformBy(Affine.pointDown(normal))
+
+    fun rotateModel(axis: Int, degrees: Float) = transformBy(Affine.rotation(axis, degrees))
+
+    fun mirrorModel(axis: Int) = transformBy(Affine.mirror(axis))
+
+    fun scaleModel(factor: Float) {
+        if (factor > 0f && kotlin.math.abs(factor - 1f) > 1e-6f) transformBy(Affine.scale(factor))
+    }
+
+    /** Scales uniformly so the model is [size] mm along [axis]. */
+    fun scaleModelTo(axis: Int, size: Float) {
+        val current = _model.value?.bounds?.size?.get(axis) ?: return
+        if (current > 0f && size > 0f) scaleModel(size / current)
+    }
+
+    fun resetTransform() {
+        if (_print.value.transform.isIdentity) return
+        applyTransform(Affine.IDENTITY, record = true, placeOnBed = false)
+    }
+
+    fun undoTransform() {
+        val st = _print.value
+        val prev = st.undo.lastOrNull() ?: return
+        applyTransform(prev, record = false, placeOnBed = prev.isIdentity.not(), popUndo = true)
+    }
+
+    fun setShowOverhangs(on: Boolean) {
+        _print.update { it.copy(showOverhangs = on) }
+        updateOptions { it.copy(mode = if (on) ShadingMode.Overhang else ShadingMode.Shaded, overhangAngle = _overhang.value.angle) }
+    }
+
+    /** Ranks a few orientations for printing (fewest overhangs, a solid footprint, low height). */
+    fun suggestOrientations() {
+        if (_print.value.suggesting || _model.value == null) return
+        _print.update { it.copy(suggesting = true, suggestions = emptyList()) }
+        viewModelScope.launch {
+            val list = withContext(Dispatchers.Default) {
+                runCatching { engine.suggestOrientations(_overhang.value.angle, 3, null) }.getOrDefault(emptyList())
+            }
+            _print.update { it.copy(suggesting = false, suggestions = list) }
+        }
+    }
+
+    fun applySuggestion(s: io.github.doesthings.meshwise.engine.OrientationStats) = layFlat(s.down)
+
+    private fun transformBy(a: Affine) = applyTransform(a * _print.value.transform, record = true, placeOnBed = true)
+
+    private var printStatsJob: Job? = null
+
+    private fun refreshPrintStats() {
+        printStatsJob?.cancel()
+        printStatsJob = viewModelScope.launch {
+            val s = withContext(Dispatchers.Default) { engine.orientationStats(Vec3(0f, 0f, -1f), _overhang.value.angle) }
+            _print.update { it.copy(stats = s) }
+        }
+    }
+
+    /**
+     * Shows the model as loaded transformed by [target]. The geometry is rebuilt from the
+     * original (so repeated turns never drift), then measuring and analysis start over.
+     */
+    private fun applyTransform(target: Affine, record: Boolean, placeOnBed: Boolean, popUndo: Boolean = false) {
+        val before = _print.value
+        if (before.busy || _model.value == null) return
+        _print.update { it.copy(busy = true) }
+        val modelBefore = _model.value
+        viewModelScope.launch {
+            val built = withContext(Dispatchers.Default) {
+                engine.transformedModel(target, placeOnBed)?.let { (handle, off) ->
+                    Triple(handle, off, ModelInfo.fromHandle(handle, modelBefore?.name ?: "model", modelBefore?.loadMillis ?: 0))
+                }
+            }
+            if (built == null || _model.value !== modelBefore) {
+                built?.let { NativeLib.nativeFreeModel(it.first) }
+                _print.update { it.copy(busy = false) }
+                return@launch
+            }
+            val (handle, off, info) = built
+            analysisJob?.cancel()
+            thicknessJob?.cancel()
+            selectPart(-1)
+            engine.setTransformedModel(handle)
+            _model.value = info.copy(warnings = modelBefore?.warnings ?: info.warnings)
+            // The engine starts with fresh part states: put colours, materials and visibility back.
+            _explode.value = 0f
+            _manualExplode.value = false
+            offsetUndo.clear()
+            _parts.update { list -> list.map { it.copy(manualOffset = Vec3.ZERO) } }
+            _parts.value.forEachIndexed { i, s -> pushPart(i, s) }
+            _measure.update { it.copy(points = emptyList(), features = emptyList(), kept = emptyList()) }
+            _thickness.value = ThicknessUi()
+            _meshCheck.value = null
+            _analysisReady.value = false
+            _section.update { it.copy(value = info.bounds.center[it.axis]) }
+            pushOptions()
+            _sceneBounds.value = engine.sceneBounds()
+            engine.fitView(true)
+            startAnalysis()
+            if (_analyzeTab.value == AnalyzeTab.Overhang) computeOverhang()
+            val final = Affine.translation(off) * target
+            _print.update {
+                it.copy(
+                    busy = false,
+                    transform = final,
+                    undo = when {
+                        popUndo -> it.undo.dropLast(1)
+                        record -> (it.undo + it.transform).takeLast(20)
+                        else -> it.undo
+                    },
+                    suggestions = emptyList(),
+                )
+            }
+            refreshPrintStats()
+            requestRender()
         }
     }
 

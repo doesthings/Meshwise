@@ -65,7 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.doesthings.meshwise.BuildConfig
 import io.github.doesthings.meshwise.R
-import io.github.doesthings.meshwise.data.UPDATES_ON
+import io.github.doesthings.meshwise.data.UPDATES_OFF
 import io.github.doesthings.meshwise.data.Units
 import io.github.doesthings.meshwise.engine.MaterialPreset
 import io.github.doesthings.meshwise.engine.Palette
@@ -269,7 +269,11 @@ fun SettingsScreen(vm: ViewerViewModel) {
             }
 
             SettingsGroup(stringResource(R.string.updates), Icons.Rounded.SystemUpdate) {
-                SwitchRow(stringResource(R.string.update_checks), s.updateChecks == UPDATES_ON, { v -> vm.setUpdateChecks(v) }, summary = stringResource(R.string.update_checks_summary))
+                val available by vm.update.collectAsStateWithLifecycle()
+                available?.let { info ->
+                    LinkRow(Icons.Rounded.SystemUpdate, stringResource(R.string.update_available_row, info.version)) { vm.showUpdate() }
+                }
+                SwitchRow(stringResource(R.string.update_checks), s.updateChecks != UPDATES_OFF, { v -> vm.setUpdateChecks(v) }, summary = stringResource(R.string.update_checks_summary))
                 LinkRow(Icons.Rounded.Refresh, stringResource(R.string.update_check_now)) { vm.checkForUpdates(manual = true) }
             }
 

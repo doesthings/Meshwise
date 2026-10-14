@@ -7,6 +7,22 @@ with those jobs. Checked items are done.
 
 Ideas and votes are welcome in [issues](../../../issues).
 
+## How features get added (no bloat)
+
+The app should stay as quick to understand as it is today, however much it can do.
+
+- **A new feature joins an existing tool** as a tab or an option there, instead of adding a new
+  button. The bottom bar keeps six buttons by default; everything else is one tap away.
+- **The simple thing first.** Each tool opens on its most common job (Measure → Smart,
+  Print → Orient); depth lives one tab or one row further down.
+- **Taps do the obvious thing** in the tool that's open (tap a hole while measuring, tap a face
+  while orienting), so most features need no extra buttons at all.
+- **Results go on the model** (outlines, dimension lines, the build volume) rather than into
+  long panels that hide it.
+- **Nothing runs in the background by surprise**: heavy work starts when a tool needs it and can
+  be cancelled.
+- People can still hide, move or reorder tools (Settings → Customize toolbar).
+
 ## 1.2: Smart measuring
 
 Measuring today means tapping two loose points on a mesh and hoping they landed in the right
@@ -32,16 +48,34 @@ place. Slicers and CAD viewers let you tap *features* instead. That's the goal h
 
 ## 1.3: Print prep
 
-- [ ] **Lay flat on face**: tap a face and the model is rotated so that face sits on the bed
-- [ ] Rotate in 90° steps or freely, mirror, center and drop to the bed
-- [ ] **Scale**: percent, exact size per axis, "convert inches to mm" for files exported in the wrong unit
-- [ ] **Printer beds**: pick a printer (Bambu, Prusa, Creality, Elegoo, Anycubic… or a custom size)
-      and see the build volume; warning when the model doesn't fit
-- [ ] Export the oriented and scaled model (STL/3MF) straight to a slicer app
-- [ ] Footprint and first-layer area, height in layers for a chosen layer height
-- [ ] Better overhang view: bridges vs. real overhangs, support area estimate
+All in one **Print** tool (it replaces the Weight button; weight is one of its tabs).
 
-## 1.4: Mesh repair and editing
+- [x] **Lay flat on face**: tap a face and the model is turned so that face sits on the bed
+- [x] **Suggested orientations**: compares the axis directions and the model's large flat faces
+      by overhang area, contact with the bed and height, and offers the best three
+- [x] Live stats for the current orientation: overhang share, height, area on the bed, with the
+      overhang shading one tap away
+- [x] Rotate in 90° steps, mirror, center and drop to the bed, undo, back to the file
+- [x] **Scale**: percent, an exact size on one side, one-tap fixes for files exported in inches,
+      cm or meters
+- [x] **Printer beds**: common Bambu Lab, Prusa, Creality and Elegoo printers or a custom size; the
+      build volume is drawn around the model, with "fits", "fits turned 90°" or "scale to fit"
+- [x] Exports and projects keep the new orientation and size
+- [ ] Free rotation with a gizmo
+- [ ] More printers (resin printers too)
+- [ ] Height in layers for a chosen layer height
+- [ ] Better overhang view: bridges vs. real overhangs, support area estimate
+- [ ] Several copies on the bed, and "split to fit" for parts larger than the printer
+
+## 1.4: Smarter holes and checks
+
+- [ ] **Screw and insert helper**: a measured hole is matched to the nearest standard size (M2–M8
+      clearance, tap drill, common heat-set inserts) with how much it's off
+- [ ] **Bolt circle**: tap three or more holes for the pattern's diameter and spacing
+- [ ] Thin-wall and small-feature warnings for the chosen nozzle size
+- [ ] Tolerance check between two parts of an assembly (gap or interference)
+
+## 1.5: Mesh repair and editing
 
 - [ ] Fix flipped normals, remove degenerate and duplicate faces
 - [ ] Fill small holes so the mesh becomes watertight
@@ -49,7 +83,7 @@ place. Slicers and CAD viewers let you tap *features* instead. That's the goal h
 - [ ] Simple cut: split the model with the section plane and export both halves
 - [ ] Reduce triangle count (decimate) for huge scans before sharing
 
-## 1.5: G-code preview
+## 1.6: G-code preview
 
 - [ ] Open `.gcode` / `.bgcode`: layer slider, travel moves, feature colors (walls, infill, supports)
 - [ ] Print time and filament as reported by the slicer, per-layer height and speed
@@ -61,6 +95,7 @@ place. Slicers and CAD viewers let you tap *features* instead. That's the goal h
 - [ ] Annotated screenshots: draw arrows and notes on a snapshot before sharing
 - [ ] Measurement report: a PNG or PDF with the model and all measurements
 - [ ] Compare two versions of a model (overlay and highlight differences)
+- [ ] Home-screen shortcut for a recent model
 
 ## Viewing
 
@@ -81,6 +116,9 @@ place. Slicers and CAD viewers let you tap *features* instead. That's the goal h
 
 ## Done
 
+- [x] Updates: the app checks GitHub once a day (can be turned off), shows what changed in every
+      version you missed, and downloads, verifies and installs the update when you tap Update
+- [x] 1.2: smart measuring (see above)
 - [x] 1.1: redesigned interface, customizable toolbar, themes, accent colors, left-handed layout,
       field of view, custom backgrounds, gesture options
 - [x] 1.0: STL/OBJ/3MF/PLY/OFF/ZIP and STEP/IGES/BREP, section cuts, measuring, wall thickness,

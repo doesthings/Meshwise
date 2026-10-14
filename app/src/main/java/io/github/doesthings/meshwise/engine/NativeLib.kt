@@ -62,6 +62,10 @@ object NativeLib {
     @JvmStatic external fun nativeSetViewInsets(h: Long, top: Float, bottom: Float, animate: Boolean)
     @JvmStatic external fun nativeSetTurntable(h: Long, on: Boolean)
     @JvmStatic external fun nativeSetSensitivity(h: Long, s: Float)
+    @JvmStatic external fun nativeTransformModel(h: Long, affine: FloatArray, placeOnBed: Boolean, outOffset: FloatArray): Long
+    @JvmStatic external fun nativeSetTransformedModel(h: Long, model: Long)
+    @JvmStatic external fun nativeOrientationStats(h: Long, dx: Float, dy: Float, dz: Float, angle: Float): FloatArray?
+    @JvmStatic external fun nativeSuggestOrientations(h: Long, angle: Float, count: Int, progress: NativeProgress?): FloatArray?
     @JvmStatic external fun nativeMeasurePick(h: Long, x: Float, y: Float, snapPx: Float): FloatArray?
     @JvmStatic external fun nativeSetTurntableSpeed(h: Long, radPerSec: Float)
     @JvmStatic external fun nativeSetFov(h: Long, degrees: Float)

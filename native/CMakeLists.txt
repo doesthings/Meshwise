@@ -25,6 +25,7 @@ set(FSV_CORE_SOURCES
   core/bvh.cpp
   core/analysis.cpp
   core/feature_finder.cpp
+  core/print_prep.cpp
   core/exporters.cpp
   core/camera.cpp
   core/shaders.cpp

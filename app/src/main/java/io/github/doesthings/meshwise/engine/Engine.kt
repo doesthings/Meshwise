@@ -40,6 +40,33 @@ class Engine {
     fun setModel(modelHandle: Long, resetView: Boolean) = NativeLib.nativeSetModel(handle, modelHandle, resetView)
     fun clearModel() = NativeLib.nativeSetModel(handle, 0, false)
 
+    /**
+     * A copy of the model as loaded, transformed by [affine] (and placed on the bed when
+     * [placeOnBed]). Returns the new model handle and the bed placement that was added, or
+     * null without a model. Hand the handle to [setTransformedModel].
+     */
+    fun transformedModel(affine: Affine, placeOnBed: Boolean): Pair<Long, Vec3>? {
+        val off = FloatArray(3)
+        val h = NativeLib.nativeTransformModel(handle, affine.m, placeOnBed, off)
+        return if (h == 0L) null else h to Vec3(off[0], off[1], off[2])
+    }
+
+    /** Shows a model from [transformedModel] (the handle is consumed). Part states reset. */
+    fun setTransformedModel(modelHandle: Long) = NativeLib.nativeSetTransformedModel(handle, modelHandle)
+
+    fun orientationStats(down: Vec3, overhangDeg: Float): OrientationStats? =
+        NativeLib.nativeOrientationStats(handle, down.x, down.y, down.z, overhangDeg)?.let {
+            OrientationStats(down, it[0].toDouble(), it[1].toDouble(), it[2].toDouble(), it[3], it[4])
+        }
+
+    fun suggestOrientations(overhangDeg: Float, count: Int, progress: NativeProgress?): List<OrientationStats> {
+        val v = NativeLib.nativeSuggestOrientations(handle, overhangDeg, count, progress) ?: return emptyList()
+        return (0 until v.size / 8).map { i ->
+            val o = i * 8
+            OrientationStats(Vec3(v[o], v[o + 1], v[o + 2]), v[o + 3].toDouble(), v[o + 4].toDouble(), v[o + 5].toDouble(), v[o + 6], v[o + 7])
+        }
+    }
+
     fun buildAnalysis(progress: NativeProgress?): Boolean = NativeLib.nativeBuildAnalysis(handle, progress)
 
     fun meshCheck(): MeshCheck? = NativeLib.nativeMeshCheck(handle)?.let {

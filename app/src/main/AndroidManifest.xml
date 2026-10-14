@@ -6,6 +6,8 @@
 
     <!-- Only for the optional update check (off until the user turns it on). -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Installing an update the user chose to download (Android asks them first). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".MeshwiseApp"
